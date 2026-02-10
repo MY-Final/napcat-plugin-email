@@ -63,9 +63,11 @@ jobs:
         run: pnpm run build
 
       - name: Prepare release package
-        env:
-          PLUGIN_NAME: napcat-plugin-template
         run: |
+          # 从 package.json 读取插件名称
+          PLUGIN_NAME=$(node -e "console.log(require('./package.json').name)")
+          echo "Plugin name: $PLUGIN_NAME"
+
           # 创建临时目录用于组织文件
           mkdir -p release
 
@@ -80,7 +82,8 @@ jobs:
 
       - name: Verify zip contents
         run: |
-          PLUGIN_NAME="napcat-plugin-template"
+          PLUGIN_NAME=$(node -e "console.log(require('./package.json').name)")
+          echo "Verifying $PLUGIN_NAME.zip"
           unzip -l ${PLUGIN_NAME}.zip
 
       - name: Collect git log
@@ -235,14 +238,15 @@ jobs:
           echo "📝 使用默认 Release Note"
 
       - name: Create Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ steps.version.outputs.version }}
-          name: Release ${{ steps.version.outputs.version }}
-          body_path: CHANGELOG.md
-          draft: false
-          files: |
-            napcat-plugin-template.zip
+        run: |
+          PLUGIN_NAME=$(node -e "console.log(require('./package.json').name)")
+          echo "Creating release with asset: ${PLUGIN_NAME}.zip"
+          
+          # 使用 GitHub CLI 创建 release 并上传资源
+          gh release create "${{ steps.version.outputs.version }}" \
+            --title "Release ${{ steps.version.outputs.version }}" \
+            --notes-file CHANGELOG.md \
+            "${PLUGIN_NAME}.zip"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
