@@ -5,8 +5,17 @@
 
 import nodemailer from 'nodemailer';
 import type { Transporter } from 'nodemailer';
-import type { SmtpConfig, SendEmailParams } from '../types';
+import type { SmtpConfig, SendEmailParams, EmailAttachment } from '../types';
 import { pluginState } from '../core/state';
+import fs from 'fs';
+import path from 'path';
+
+// 定义附件类型接口
+interface ProcessedAttachment {
+    filename: string;
+    content?: Buffer;
+    contentType?: string;
+}
 
 /**
  * 创建邮件传输器
@@ -27,6 +36,75 @@ export function createTransporter(smtpConfig: SmtpConfig): Transporter {
         },
     });
     return transporter;
+}
+
+/**
+ * 处理附件数据，转换为 nodemailer 格式
+ * @param attachments 附件列表
+ * @returns 处理后的附件列表
+ */
+async function processAttachments(attachments: EmailAttachment[]): Promise<ProcessedAttachment[]> {
+    const processedAttachments: ProcessedAttachment[] = [];
+
+    for (const att of attachments) {
+        const attachment: ProcessedAttachment = {
+            filename: att.filename,
+        };
+
+        // 如果提供了路径，从文件读取
+        if (att.path && fs.existsSync(att.path)) {
+            attachment.content = fs.readFileSync(att.path);
+            if (!att.contentType) {
+                // 根据文件扩展名推断 contentType
+                const ext = path.extname(att.path).toLowerCase();
+                attachment.contentType = getMimeType(ext);
+            } else {
+                attachment.contentType = att.contentType;
+            }
+        } else if (att.content) {
+            // 使用提供的 content
+            if (Buffer.isBuffer(att.content)) {
+                attachment.content = att.content;
+            } else if (typeof att.content === 'string') {
+                // 假设是 base64 编码的字符串
+                attachment.content = Buffer.from(att.content, 'base64');
+            }
+            if (att.contentType) {
+                attachment.contentType = att.contentType;
+            }
+        }
+
+        processedAttachments.push(attachment);
+    }
+
+    return processedAttachments;
+}
+
+/**
+ * 根据文件扩展名获取 MIME 类型
+ * @param ext 文件扩展名（包含点）
+ * @returns MIME 类型
+ */
+function getMimeType(ext: string): string {
+    const mimeTypes: Record<string, string> = {
+        '.pdf': 'application/pdf',
+        '.doc': 'application/msword',
+        '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        '.xls': 'application/vnd.ms-excel',
+        '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        '.ppt': 'application/vnd.ms-powerpoint',
+        '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.png': 'image/png',
+        '.gif': 'image/gif',
+        '.zip': 'application/zip',
+        '.txt': 'text/plain',
+        '.html': 'text/html',
+        '.htm': 'text/html',
+        '.csv': 'text/csv',
+    };
+    return mimeTypes[ext] || 'application/octet-stream';
 }
 
 /**
@@ -58,13 +136,32 @@ export async function sendEmail(params: SendEmailParams): Promise<{ success: boo
         // 验证传输器配置
         await transporter.verify();
 
-        const info = await transporter.sendMail({
+        // 构建邮件选项
+        const mailOptions: nodemailer.SendMailOptions = {
             from: `"${smtpConfig.senderName}" <${smtpConfig.user}>`,
             to: params.to,
             subject: `${smtpConfig.subjectPrefix} ${params.subject}`,
-            text: params.text,
-            html: params.html,
-        });
+        };
+
+        // 如果有 HTML 内容，优先使用 HTML
+        if (params.html) {
+            mailOptions.html = params.html;
+            // 如果没有纯文本，从 HTML 中提取（可选）
+            if (!params.text) {
+                mailOptions.text = params.html.replace(/<[^>]*>/g, '').substring(0, 500);
+            } else {
+                mailOptions.text = params.text;
+            }
+        } else {
+            mailOptions.text = params.text;
+        }
+
+        // 处理附件
+        if (params.attachments && params.attachments.length > 0) {
+            mailOptions.attachments = await processAttachments(params.attachments);
+        }
+
+        const info = await transporter.sendMail(mailOptions);
 
         pluginState.logger.info(`邮件发送成功: ${info.messageId}`);
         return { success: true, message: `邮件发送成功: ${info.messageId}` };

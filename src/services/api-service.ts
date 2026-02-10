@@ -24,6 +24,8 @@ import type {
 import { pluginState } from '../core/state';
 import { sendEmail, sendTestEmail, testSmtpConnection, validateSmtpConfig } from './email-service';
 import type { SendEmailParams } from '../types';
+import fs from 'fs';
+import path from 'path';
 
 /**
  * 注册 API 路由
@@ -189,6 +191,7 @@ export function registerApiRoutes(ctx: NapCatPluginContext): void {
                 subject: body.subject,
                 text: body.text,
                 html: body.html,
+                attachments: body.attachments,
             });
 
             if (result.success) {
@@ -198,6 +201,44 @@ export function registerApiRoutes(ctx: NapCatPluginContext): void {
             }
         } catch (err) {
             ctx.logger.error('发送邮件失败:', err);
+            res.status(500).json({ code: -1, message: String(err) });
+        }
+    });
+
+    /** 上传附件（临时存储） */
+    router.postNoAuth('/email/upload', async (req, res) => {
+        try {
+            const body = req.body as { filename?: string; content?: string } | undefined;
+            if (!body?.filename || !body?.content) {
+                return res.status(400).json({ code: -1, message: '缺少必要参数: filename, content' });
+            }
+
+            // 创建临时目录
+            const tempDir = path.join(ctx.dataPath, 'temp_attachments');
+            if (!fs.existsSync(tempDir)) {
+                fs.mkdirSync(tempDir, { recursive: true });
+            }
+
+            // 生成唯一文件名
+            const timestamp = Date.now();
+            const safeFilename = body.filename.replace(/[^a-zA-Z0-9.-]/g, '_');
+            const tempFilePath = path.join(tempDir, `${timestamp}_${safeFilename}`);
+
+            // 保存 base64 内容到临时文件
+            const buffer = Buffer.from(body.content, 'base64');
+            fs.writeFileSync(tempFilePath, buffer);
+
+            // 返回临时文件路径（供后续发送邮件使用）
+            res.json({
+                code: 0,
+                data: {
+                    path: tempFilePath,
+                    filename: body.filename,
+                    size: buffer.length,
+                },
+            });
+        } catch (err) {
+            ctx.logger.error('上传附件失败:', err);
             res.status(500).json({ code: -1, message: String(err) });
         }
     });

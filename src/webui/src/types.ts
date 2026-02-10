@@ -67,3 +67,9 @@ export interface ApiResponse<T = unknown> {
     data?: T
     message?: string
 }
+
+export interface EmailAttachment {
+    filename: string
+    path: string
+    contentType: string
+}

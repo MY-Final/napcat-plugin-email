@@ -30,6 +30,20 @@ export interface SmtpConfig {
 }
 
 /**
+ * 邮件附件接口
+ */
+export interface EmailAttachment {
+    /** 文件名 */
+    filename: string;
+    /** 文件内容（Buffer 或 Base64 字符串） */
+    content: Buffer | string;
+    /** 文件路径（可选，与 content 二选一） */
+    path?: string;
+    /** 内容类型（MIME type，可选） */
+    contentType?: string;
+}
+
+/**
  * 发送邮件参数接口
  */
 export interface SendEmailParams {
@@ -41,6 +55,8 @@ export interface SendEmailParams {
     text?: string;
     /** HTML 内容 */
     html?: string;
+    /** 附件列表 */
+    attachments?: EmailAttachment[];
 }
 
 /**

@@ -4,12 +4,6 @@ import { showToast } from '../hooks/useToast'
 import type { PluginConfig, SendEmailParams, EmailAttachment } from '../types'
 import { IconMail, IconSend, IconSettings, IconTestTube, IconPaperclip, IconCode, IconX } from '../components/icons'
 
-interface UploadResponse {
-    path: string;
-    filename: string;
-    size: number;
-}
-
 export default function EmailPage() {
     const [config, setConfig] = useState<PluginConfig | null>(null)
     const [smtpHost, setSmtpHost] = useState('')
@@ -123,8 +117,7 @@ export default function EmailPage() {
                     body: JSON.stringify({ filename: file.name, content: base64Content }),
                 })
                 if (res.code === 0 && res.data) {
-                    const uploadData = res.data as UploadResponse;
-                    resolve({ filename: file.name, path: uploadData.path, contentType: file.type })
+                    resolve({ filename: file.name, path: res.data.path, contentType: file.type })
                 } else {
                     reject(new Error(res.message || '上传失败'))
                 }
