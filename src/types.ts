@@ -198,6 +198,10 @@ export interface EmailHistory {
     to: string;
     /** 邮件主题 */
     subject: string;
+    /** 纯文本内容（可选） */
+    text?: string;
+    /** HTML 内容（可选） */
+    html?: string;
     /** 发送状态：success=成功, failed=失败 */
     status: EmailSendStatus;
     /** 错误信息（失败时记录） */
@@ -208,6 +212,8 @@ export interface EmailHistory {
     scheduledEmailId?: string;
     /** 附件数量 */
     attachmentCount: number;
+    /** 附件列表（详细信息） */
+    attachments?: { filename: string; contentType?: string }[];
 }
 
 /**

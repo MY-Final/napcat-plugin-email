@@ -224,9 +224,12 @@ export function registerApiRoutes(ctx: NapCatPluginContext): void {
                 sendType: 'manual',
                 to: recipients.join(','),
                 subject: body.subject,
+                text: body.text,
+                html: body.html,
                 status: result.success ? 'success' : 'failed',
                 errorMessage: result.success ? undefined : result.message,
                 attachmentCount: body.attachments?.length || 0,
+                attachments: body.attachments?.map(att => ({ filename: att.filename, contentType: att.contentType })),
             });
 
             if (result.success) {
@@ -301,7 +304,16 @@ export function registerApiRoutes(ctx: NapCatPluginContext): void {
             emailHistoryService.addRecord({
                 sendType: 'test',
                 to: testEmail,
-                subject: '测试邮件',
+                subject: 'SMTP 配置测试',
+                text: `这是一封测试邮件，用于验证 SMTP 配置是否正确。\n\n发送时间: ${new Date().toLocaleString('zh-CN')}`,
+                html: `
+                    <div style="font-family: Arial, sans-serif; padding: 20px;">
+                        <h2 style="color: #4CAF50;">SMTP 配置测试</h2>
+                        <p>这是一封测试邮件，用于验证 SMTP 配置是否正确。</p>
+                        <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
+                        <p style="color: #666; font-size: 12px;">发送时间: ${new Date().toLocaleString('zh-CN')}</p>
+                    </div>
+                `,
                 status: result.success ? 'success' : 'failed',
                 errorMessage: result.success ? undefined : result.message,
                 attachmentCount: 0,
@@ -540,6 +552,26 @@ export function registerApiRoutes(ctx: NapCatPluginContext): void {
             res.json({ code: 0, message: '历史记录已清空' });
         } catch (err) {
             ctx.logger.error('清空邮件历史记录失败:', err);
+            res.status(500).json({ code: -1, message: String(err) });
+        }
+    });
+
+    /** 获取单条邮件详情 */
+    router.getNoAuth('/email/history/:id', (req, res) => {
+        try {
+            const id = req.params?.id;
+            if (!id) {
+                return res.status(400).json({ code: -1, message: '缺少记录 ID' });
+            }
+
+            const record = emailHistoryService.getRecordById(id);
+            if (!record) {
+                return res.status(404).json({ code: -1, message: '记录不存在' });
+            }
+
+            res.json({ code: 0, data: record });
+        } catch (err) {
+            ctx.logger.error('获取邮件详情失败:', err);
             res.status(500).json({ code: -1, message: String(err) });
         }
     });

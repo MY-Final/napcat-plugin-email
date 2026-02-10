@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import type { EmailHistory, EmailHistoryStats, EmailHistoryResponse } from '../types'
 import { 
   IconPower, 
@@ -10,7 +11,9 @@ import {
   IconSend,
   IconTestTube,
   IconTrash,
-  IconX
+  IconX,
+  IconEye,
+  IconPaperclip
 } from '../components/icons'
 import { noAuthFetch } from '../utils/api'
 import { showToast } from '../hooks/useToast'
@@ -50,20 +53,36 @@ function formatDate(dateStr: string): string {
   })
 }
 
-const sendTypeLabels: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
+/** 格式化完整日期时间 */
+function formatDateTime(dateStr: string): string {
+  const date = new Date(dateStr)
+  return date.toLocaleString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  })
+}
+
+const sendTypeLabels: Record<string, { label: string; color: string; icon: React.ReactNode; bgColor: string }> = {
   scheduled: { 
     label: '定时任务', 
-    color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+    color: 'text-blue-700 dark:text-blue-400',
+    bgColor: 'bg-blue-100 dark:bg-blue-900/30',
     icon: <IconCalendar size={14} />
   },
   manual: { 
     label: '手动发送', 
-    color: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
+    color: 'text-purple-700 dark:text-purple-400',
+    bgColor: 'bg-purple-100 dark:bg-purple-900/30',
     icon: <IconSend size={14} />
   },
   test: { 
     label: '测试邮件', 
-    color: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400',
+    color: 'text-gray-700 dark:text-gray-400',
+    bgColor: 'bg-gray-100 dark:bg-gray-800',
     icon: <IconTestTube size={14} />
   },
 }
@@ -75,6 +94,8 @@ export default function StatusPage({ status }: StatusPageProps) {
   const [history, setHistory] = useState<EmailHistoryResponse | null>(null)
   const [loading, setLoading] = useState(false)
   const [page, setPage] = useState(1)
+  const [selectedEmail, setSelectedEmail] = useState<EmailHistory | null>(null)
+  const [showDetailModal, setShowDetailModal] = useState(false)
   const pageSize = 10
 
   // 同步运行时长
@@ -123,8 +144,24 @@ export default function StatusPage({ status }: StatusPageProps) {
     }
   }, [page])
 
+  // 查看邮件详情
+  const viewEmailDetail = async (email: EmailHistory) => {
+    try {
+      const res = await noAuthFetch<EmailHistory>(`/email/history/${email.id}`)
+      if (res.code === 0 && res.data) {
+        setSelectedEmail(res.data)
+        setShowDetailModal(true)
+      } else {
+        showToast('获取邮件详情失败', 'error')
+      }
+    } catch {
+      showToast('获取邮件详情失败', 'error')
+    }
+  }
+
   // 删除单条记录
-  const deleteRecord = async (id: string) => {
+  const deleteRecord = async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation()
     if (!confirm('确定要删除这条记录吗？')) return
     try {
       const res = await noAuthFetch(`/email/history/${id}`, { method: 'DELETE' })
@@ -359,19 +396,21 @@ export default function StatusPage({ status }: StatusPageProps) {
               {history?.list.map((record) => (
                 <div 
                   key={record.id} 
-                  className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                  onClick={() => viewEmailDetail(record)}
+                  className="group flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-all cursor-pointer border border-transparent hover:border-gray-200 dark:hover:border-gray-700"
                 >
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
-                      <span className={`px-2 py-0.5 text-xs rounded-full flex items-center gap-1 ${sendTypeLabels[record.sendType].color}`}>
+                      <span className={`px-2 py-0.5 text-xs rounded-full flex items-center gap-1 ${sendTypeLabels[record.sendType].bgColor} ${sendTypeLabels[record.sendType].color}`}>
                         {sendTypeLabels[record.sendType].icon}
                         {sendTypeLabels[record.sendType].label}
                       </span>
                       <span className={`w-2 h-2 rounded-full ${record.status === 'success' ? 'bg-emerald-500' : 'bg-red-500'}`} />
                       <span className="text-xs text-gray-400">{formatDate(record.sentAt)}</span>
                       {record.attachmentCount > 0 && (
-                        <span className="text-xs text-gray-400">
-                          📎 {record.attachmentCount}
+                        <span className="text-xs text-gray-400 flex items-center gap-1">
+                          <IconPaperclip size={12} />
+                          {record.attachmentCount}
                         </span>
                       )}
                     </div>
@@ -381,19 +420,26 @@ export default function StatusPage({ status }: StatusPageProps) {
                     <div className="text-xs text-gray-500 truncate">
                       收件人: {record.to}
                     </div>
-                    {record.errorMessage && (
-                      <div className="text-xs text-red-500 mt-1">
-                        错误: {record.errorMessage}
-                      </div>
-                    )}
                   </div>
-                  <button
-                    onClick={() => deleteRecord(record.id)}
-                    className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors ml-2"
-                    title="删除记录"
-                  >
-                    <IconX size={16} />
-                  </button>
+                  <div className="flex items-center gap-1 ml-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        viewEmailDetail(record)
+                      }}
+                      className="p-2 text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                      title="查看详情"
+                    >
+                      <IconEye size={16} />
+                    </button>
+                    <button
+                      onClick={(e) => deleteRecord(e, record.id)}
+                      className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                      title="删除记录"
+                    >
+                      <IconX size={16} />
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -428,6 +474,201 @@ export default function StatusPage({ status }: StatusPageProps) {
           </>
         )}
       </div>
+
+      {/* 邮件详情弹窗 */}
+      {showDetailModal && selectedEmail && (
+        <EmailDetailModal 
+          email={selectedEmail} 
+          onClose={() => {
+            setShowDetailModal(false)
+            setSelectedEmail(null)
+          }}
+        />
+      )}
+    </div>
+  )
+}
+
+/** 邮件详情弹窗组件 */
+function EmailDetailModal({ email, onClose }: { email: EmailHistory; onClose: () => void }) {
+  const [showHtml, setShowHtml] = useState(!!email.html)
+
+  // 锁定 body 滚动
+  useEffect(() => {
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = ''
+    }
+  }, [])
+
+  return createPortal(
+    <div 
+      className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-[9999]"
+      onClick={onClose}
+    >
+      <div 
+        className="bg-white dark:bg-[#1e1e20] rounded-2xl w-full max-w-3xl max-h-[calc(100vh-2rem)] sm:max-h-[calc(100vh-4rem)] flex flex-col shadow-2xl animate-modal-enter overflow-hidden"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* 头部 */}
+        <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200 dark:border-gray-800 flex-shrink-0">
+          <div className="flex items-center gap-3">
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${sendTypeLabels[email.sendType].bgColor}`}>
+              {sendTypeLabels[email.sendType].icon}
+            </div>
+            <div>
+              <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">
+                邮件详情
+              </h3>
+              <span className={`text-xs px-2 py-0.5 rounded-full ${sendTypeLabels[email.sendType].bgColor} ${sendTypeLabels[email.sendType].color}`}>
+                {sendTypeLabels[email.sendType].label}
+              </span>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+          >
+            <IconX size={20} />
+          </button>
+        </div>
+
+        {/* 内容 */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+          {/* 基本信息 */}
+          <div className="space-y-4 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <InfoItem label="收件人" value={email.to} />
+              <InfoItem label="发送时间" value={formatDateTime(email.sentAt)} />
+            </div>
+            <InfoItem label="主题" value={email.subject} />
+            <div className="flex items-center gap-4">
+              <InfoItem 
+                label="发送状态" 
+                value={
+                  <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs ${
+                    email.status === 'success' 
+                      ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' 
+                      : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                  }`}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${email.status === 'success' ? 'bg-emerald-500' : 'bg-red-500'}`} />
+                    {email.status === 'success' ? '发送成功' : '发送失败'}
+                  </span>
+                } 
+              />
+              {email.attachmentCount > 0 && (
+                <InfoItem 
+                  label="附件数量" 
+                  value={
+                    <span className="inline-flex items-center gap-1 text-gray-600 dark:text-gray-400">
+                      <IconPaperclip size={14} />
+                      {email.attachmentCount} 个
+                    </span>
+                  } 
+                />
+              )}
+            </div>
+            {email.errorMessage && (
+              <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                <div className="text-xs text-red-600 dark:text-red-400 font-medium mb-1">错误信息</div>
+                <div className="text-sm text-red-700 dark:text-red-300">{email.errorMessage}</div>
+              </div>
+            )}
+          </div>
+
+          {/* 附件列表 */}
+          {email.attachments && email.attachments.length > 0 && (
+            <div className="mb-6">
+              <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
+                <IconPaperclip size={16} />
+                附件 ({email.attachments.length})
+              </h4>
+              <div className="flex flex-wrap gap-2">
+                {email.attachments.map((att, index) => (
+                  <div 
+                    key={index}
+                    className="flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-800 rounded-lg text-sm"
+                  >
+                    <IconPaperclip size={14} className="text-gray-400" />
+                    <span className="text-gray-700 dark:text-gray-300">{att.filename}</span>
+                    {att.contentType && (
+                      <span className="text-xs text-gray-400">({att.contentType})</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 邮件内容 */}
+          {(email.text || email.html) && (
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  邮件内容
+                </h4>
+                {email.text && email.html && (
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setShowHtml(false)}
+                      className={`px-3 py-1 text-xs rounded-lg transition-colors ${
+                        !showHtml 
+                          ? 'bg-primary text-white' 
+                          : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200'
+                      }`}
+                    >
+                      纯文本
+                    </button>
+                    <button
+                      onClick={() => setShowHtml(true)}
+                      className={`px-3 py-1 text-xs rounded-lg transition-colors ${
+                        showHtml 
+                          ? 'bg-primary text-white' 
+                          : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200'
+                      }`}
+                    >
+                      HTML
+                    </button>
+                  </div>
+                )}
+              </div>
+              <div className="p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-800">
+                {showHtml && email.html ? (
+                  <div 
+                    className="prose dark:prose-invert max-w-none text-sm"
+                    dangerouslySetInnerHTML={{ __html: email.html }}
+                  />
+                ) : (
+                  <pre className="whitespace-pre-wrap text-sm text-gray-700 dark:text-gray-300 font-sans">
+                    {email.text || '(无文本内容)'}
+                  </pre>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* 底部 */}
+        <div className="flex justify-end gap-3 px-4 sm:px-6 py-3 sm:py-4 border-t border-gray-200 dark:border-gray-800 flex-shrink-0">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+          >
+            关闭
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  )
+}
+
+/** 信息项组件 */
+function InfoItem({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div>
+      <div className="text-xs text-gray-400 mb-1">{label}</div>
+      <div className="text-sm text-gray-900 dark:text-white">{value}</div>
     </div>
   )
 }

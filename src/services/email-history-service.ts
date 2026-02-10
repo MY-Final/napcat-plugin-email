@@ -72,21 +72,27 @@ class EmailHistoryService {
         sendType: EmailSendType;
         to: string;
         subject: string;
+        text?: string;
+        html?: string;
         status: EmailSendStatus;
         errorMessage?: string;
         scheduledEmailId?: string;
         attachmentCount?: number;
+        attachments?: { filename: string; contentType?: string }[];
     }): EmailHistory {
         const record: EmailHistory = {
             id: this.generateId(),
             sendType: params.sendType,
             to: params.to,
             subject: params.subject,
+            text: params.text,
+            html: params.html,
             status: params.status,
             errorMessage: params.errorMessage,
             sentAt: new Date().toISOString(),
             scheduledEmailId: params.scheduledEmailId,
             attachmentCount: params.attachmentCount || 0,
+            attachments: params.attachments,
         };
 
         this.history.unshift(record); // 新记录放前面
@@ -228,6 +234,13 @@ class EmailHistoryService {
         this.history = [];
         this.saveToFile();
         pluginState.logger.info('邮件历史记录已清空');
+    }
+
+    /**
+     * 获取单条记录
+     */
+    getRecordById(id: string): EmailHistory | undefined {
+        return this.history.find(h => h.id === id);
     }
 
     /**

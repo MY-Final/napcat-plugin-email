@@ -155,10 +155,13 @@ export async function executeScheduledEmail(email: ScheduledEmail): Promise<{ su
             sendType: 'scheduled',
             to: email.to,
             subject: email.subject,
+            text: email.text,
+            html: email.html,
             status: result.success ? 'success' : 'failed',
             errorMessage: result.success ? undefined : result.message,
             scheduledEmailId: email.id,
             attachmentCount: email.attachments?.length || 0,
+            attachments: email.attachments?.map(att => ({ filename: att.filename, contentType: att.contentType })),
         });
 
         if (result.success) {

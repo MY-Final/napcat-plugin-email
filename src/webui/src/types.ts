@@ -101,11 +101,14 @@ export interface EmailHistory {
     sendType: EmailSendType
     to: string
     subject: string
+    text?: string
+    html?: string
     status: EmailSendStatus
     errorMessage?: string
     sentAt: string
     scheduledEmailId?: string
     attachmentCount: number
+    attachments?: { filename: string; contentType?: string }[]
 }
 
 export interface EmailHistoryStats {
