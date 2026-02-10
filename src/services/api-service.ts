@@ -22,6 +22,8 @@ import type {
     PluginHttpResponse
 } from 'napcat-types/napcat-onebot/network/plugin/types';
 import { pluginState } from '../core/state';
+import { sendEmail, sendTestEmail, testSmtpConnection, validateSmtpConfig } from './email-service';
+import type { SendEmailParams } from '../types';
 
 /**
  * 注册 API 路由
@@ -135,6 +137,96 @@ export function registerApiRoutes(ctx: NapCatPluginContext): void {
             res.json({ code: 0, message: 'ok' });
         } catch (err) {
             ctx.logger.error('批量更新群配置失败:', err);
+            res.status(500).json({ code: -1, message: String(err) });
+        }
+    });
+
+    // ==================== 邮箱服务（无鉴权）====================
+
+    /** 获取 SMTP 配置 */
+    router.getNoAuth('/email/config', (_req, res) => {
+        const cfg = pluginState.config;
+        // 不返回授权码
+        res.json({
+            code: 0,
+            data: {
+                host: cfg.smtpHost,
+                port: cfg.smtpPort,
+                user: cfg.smtpUser,
+                senderName: cfg.smtpSenderName,
+                subjectPrefix: cfg.smtpSubjectPrefix,
+                secure: cfg.smtpSecure,
+            }
+        });
+    });
+
+    /** 发送邮件 */
+    router.postNoAuth('/email/send', async (req, res) => {
+        try {
+            const body = req.body as Partial<SendEmailParams> | undefined;
+            if (!body?.to || !body?.subject) {
+                return res.status(400).json({ code: -1, message: '缺少必要参数: to, subject' });
+            }
+
+            const cfg = pluginState.config;
+            const smtpConfig = {
+                host: cfg.smtpHost,
+                port: cfg.smtpPort,
+                user: cfg.smtpUser,
+                pass: cfg.smtpPass,
+                senderName: cfg.smtpSenderName,
+                subjectPrefix: cfg.smtpSubjectPrefix,
+                secure: cfg.smtpSecure,
+            };
+
+            const validation = validateSmtpConfig(smtpConfig);
+            if (!validation.valid) {
+                return res.status(400).json({ code: -1, message: validation.message });
+            }
+
+            const result = await sendEmail({
+                to: body.to,
+                subject: body.subject,
+                text: body.text,
+                html: body.html,
+            });
+
+            if (result.success) {
+                res.json({ code: 0, message: result.message });
+            } else {
+                res.status(500).json({ code: -1, message: result.message });
+            }
+        } catch (err) {
+            ctx.logger.error('发送邮件失败:', err);
+            res.status(500).json({ code: -1, message: String(err) });
+        }
+    });
+
+    /** 测试 SMTP 配置 */
+    router.postNoAuth('/email/test', async (req, res) => {
+        try {
+            const body = req.body as { to?: string } | undefined;
+            const testEmail = body?.to || pluginState.config.smtpUser;
+
+            if (!testEmail) {
+                return res.status(400).json({ code: -1, message: '请提供测试邮箱地址或配置发件人邮箱' });
+            }
+
+            // 先测试连接
+            const connectionResult = await testSmtpConnection();
+            if (!connectionResult.success) {
+                return res.status(500).json({ code: -1, message: connectionResult.message });
+            }
+
+            // 发送测试邮件
+            const result = await sendTestEmail(testEmail);
+            if (result.success) {
+                res.json({ code: 0, message: result.message });
+            } else {
+                res.status(500).json({ code: -1, message: result.message });
+            }
+        } catch (err) {
+            ctx.logger.error('测试邮件失败:', err);
             res.status(500).json({ code: -1, message: String(err) });
         }
     });

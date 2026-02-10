@@ -125,6 +125,7 @@ export const plugin_on_config_change: PluginModule['plugin_on_config_change'] = 
     ctx, ui, key, value, currentConfig
 ) => {
     try {
+        // 扁平结构，直接使用 key-value 更新
         pluginState.updateConfig({ [key]: value });
         ctx.logger.debug(`配置项 ${key} 已更新`);
     } catch (err) {

@@ -15,7 +15,7 @@ const nodeModules = [
 ].flat();
 
 // 依赖排除（如有外部依赖需排除，在此添加）
-const external: string[] = [];
+const external: string[] = ['napcat-types'];
 
 /**
  * 递归复制目录
@@ -146,9 +146,11 @@ export default defineConfig({
         outDir: 'dist',
     },
     plugins: [nodeResolve(), copyAssetsPlugin(), napcatHmrPlugin({
+        wsUrl: 'ws://117.72.196.152:18898',
         webui: {
             distDir: './src/webui/dist',
             targetDir: 'webui',
         },
     })],
+
 });

@@ -202,3 +202,34 @@ export function IconSun({ size, className }: IconProps = defaultProps) {
         </svg>
     )
 }
+
+/** 邮箱/邮件 */
+export function IconMail({ size, className }: IconProps = defaultProps) {
+    return (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+            <polyline points="22,6 12,13 2,6" />
+        </svg>
+    )
+}
+
+/** 发送 */
+export function IconSend({ size, className }: IconProps = defaultProps) {
+    return (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+            <line x1="22" y1="2" x2="11" y2="13" />
+            <polygon points="22 2 15 22 11 13 2 9 22 2" />
+        </svg>
+    )
+}
+
+/** 测试管 */
+export function IconTestTube({ size, className }: IconProps = defaultProps) {
+    return (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+            <path d="M21 7l-4.6-4.6a2 2 0 0 0-2.8 0l-8.6 8.6a2 2 0 0 0 0 2.8l4.6 4.6a2 2 0 0 0 2.8 0l8.6-8.6a2 2 0 0 0 0-2.8z" />
+            <path d="M14.5 9.5l-5 5" />
+            <path d="M17.5 12.5l-8 8" />
+        </svg>
+    )
+}

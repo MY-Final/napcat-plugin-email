@@ -1,11 +1,314 @@
-# NapCat 插件开发模板
+# NapCat 邮箱服务插件
 
-一个快速开始 NapCat 插件开发的模板项目，基于实际生产项目架构提炼而成。
+[![NapCat Version](https://img.shields.io/badge/NapCat-%3E%3D4.14.0-blue)](https://github.com/NapNeko/NapCatQQ)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![GitHub Stars](https://img.shields.io/github/stars/MY-Final/napcat-plugin-email?style=social)](https://github.com/MY-Final/napcat-plugin-email/stargazers)
+
+通过QQ命令发送邮件，支持SMTP配置。NapCat QQ机器人的邮箱服务插件，让您可以直接在QQ群中通过简单的命令发送邮件。
+
+> 🎉 **功能亮点**：无需离开QQ，一键发送邮件到任意邮箱，支持群发、测试功能！
+
+## 📋 功能特性
+
+- **SMTP服务器配置** - 支持主流邮箱服务商（QQ、163、Gmail等）的SMTP配置
+- **QQ命令发送邮件** - 在QQ群或私聊中通过简单命令即可发送邮件
+- **支持群发邮件** - 可同时发送给多个收件人，提高工作效率
+- **WebUI配置面板** - 可视化界面管理邮箱配置，操作简便
+- **测试邮件功能** - 发送测试邮件验证配置是否正确
+
+## 📸 功能预览
+
+<!-- 截图区域 - 建议上传以下截图到GitHub后替换链接：
+1. WebUI配置界面截图
+2. QQ命令使用示例截图
+3. 邮件发送成功截图
+-->
+
+*功能截图将在后续版本补充*
+
+## 🚀 快速开始
+
+### 1. 安装插件
+
+#### 方式一：从 GitHub Release 下载（推荐）
+
+1. 访问 [Releases 页面](https://github.com/MY-Final/napcat-plugin-email/releases)
+2. 下载最新版本的 `napcat-plugin-email.zip`
+3. 解压到 NapCat 的插件目录
+
+#### 方式二：手动构建
+
+```bash
+git clone https://github.com/MY-Final/napcat-plugin-email.git
+cd napcat-plugin-email
+pnpm install
+pnpm run build
+```
+
+将 `dist/` 目录复制到 NapCat 插件目录：
+
+```
+plugins/
+├── napcat-plugin-email/
+│   ├── index.mjs
+│   ├── package.json
+│   └── webui/
+│       └── index.html
+```
+
+### 2. 配置SMTP
+
+#### 方式一：通过WebUI配置（推荐）
+
+1. 打开 NapCat WebUI
+2. 进入「插件」页面
+3. 找到「邮箱服务插件」并点击「配置」
+4. 填写SMTP配置信息并保存
+
+#### 方式二：通过配置文件
+
+编辑插件配置文件，填写SMTP相关信息。
+
+### 3. 开始使用
+
+在QQ群中发送命令即可使用邮箱功能：
+
+```
+#email send example@qq.com 测试邮件 这是一封测试邮件内容
+```
+
+## 💬 QQ命令说明
+
+### 命令格式
+
+所有命令以 `#email` 开头：
+
+| 命令 | 说明 | 示例 |
+|------|------|------|
+| `#email send <收件人> <主题> <内容>` | 发送邮件 | `#email send user@qq.com 问候 你好！` |
+| `#email test` | 发送测试邮件 | `#email test` |
+| `#email help` | 显示帮助信息 | `#email help` |
+
+### 收件人格式
+
+- **单个收件人**：直接填写邮箱地址
+  ```
+  #email send user@qq.com 主题 内容
+  ```
+
+- **多个收件人**：使用英文逗号分隔
+  ```
+  #email send user1@qq.com,user2@qq.com 主题 内容
+  ```
+
+### 命令使用示例
+
+```
+# 发送简单邮件
+#email send admin@company.com 会议通知 明天下午3点开项目会议
+
+# 群发邮件给多个收件人
+#email send alice@qq.com,bob@163.com,charlie@gmail.com 节日祝福 祝大家新年快乐！
+
+# 发送测试邮件验证配置
+#email test
+
+# 查看帮助
+#email help
+```
+
+## ⚙️ SMTP配置说明
+
+### 配置项列表
+
+| 配置项 | 必填 | 说明 | 示例 |
+|--------|------|------|------|
+| SMTP服务器地址 | ✅ | 邮箱服务商的SMTP服务器 | `smtp.qq.com` |
+| SMTP端口 | ✅ | SMTP服务端口 | `465` 或 `587` |
+| 邮箱账号 | ✅ | 发件人邮箱地址 | `yourname@qq.com` |
+| SMTP授权码 | ✅ | 邮箱的SMTP授权码（非登录密码） | `abcdefghijklmnop` |
+| 发件人显示名称 | ❌ | 邮件中显示的发件人名称 | `QQ机器人` |
+| 邮件标题前缀 | ❌ | 自动添加到邮件标题前的文字 | `[机器人通知]` |
+| SSL/TLS加密 | ✅ | 是否启用SSL/TLS加密 | 建议开启 |
+
+### 常见邮箱SMTP配置
+
+#### QQ邮箱
+- **SMTP服务器**：`smtp.qq.com`
+- **端口**：`465`（SSL）或 `587`（TLS）
+- **授权码获取**：QQ邮箱设置 → 账户 → 开启SMTP服务 → 生成授权码
+
+#### 163邮箱
+- **SMTP服务器**：`smtp.163.com`
+- **端口**：`465`（SSL）
+- **授权码获取**：163邮箱设置 → POP3/SMTP/IMAP → 开启服务 → 获取授权码
+
+#### Gmail
+- **SMTP服务器**：`smtp.gmail.com`
+- **端口**：`465`（SSL）
+- **授权码**：需要开启两步验证后生成的应用专用密码
+
+### 配置示例
+
+```json
+{
+  "smtpHost": "smtp.qq.com",
+  "smtpPort": 465,
+  "smtpUser": "yourname@qq.com",
+  "smtpPass": "your_auth_code",
+  "senderName": "QQ机器人",
+  "subjectPrefix": "[群通知]",
+  "useSSL": true,
+  "enabled": true
+}
+```
+
+## 📖 完整使用示例
+
+### 场景一：群公告通知
+
+管理员在群中发送：
+```
+#email send member1@qq.com,member2@qq.com 本周工作安排 请大家查看附件中的工作安排表，如有问题请及时反馈。
+```
+
+### 场景二：系统告警通知
+
+配合其他插件使用，当检测到系统异常时：
+```
+#email send admin@company.com 系统告警 服务器CPU使用率超过90%，请及时处理！
+```
+
+### 场景三：定时发送日报
+
+设置定时任务，每天自动发送工作日报：
+```
+#email send manager@company.com 工作日报 [日报内容...]
+```
+
+## 🌐 WebUI API 文档
+
+插件提供以下RESTful API接口：
+
+### 获取邮箱配置
+
+```
+GET /api/plugin/napcat-plugin-email/config
+```
+
+**响应示例**：
+```json
+{
+  "code": 0,
+  "data": {
+    "smtpHost": "smtp.qq.com",
+    "smtpPort": 465,
+    "smtpUser": "yourname@qq.com",
+    "senderName": "QQ机器人",
+    "subjectPrefix": "[群通知]",
+    "useSSL": true,
+    "enabled": true
+  }
+}
+```
+
+### 保存邮箱配置
+
+```
+POST /api/plugin/napcat-plugin-email/config
+```
+
+**请求体**：
+```json
+{
+  "smtpHost": "smtp.qq.com",
+  "smtpPort": 465,
+  "smtpUser": "yourname@qq.com",
+  "smtpPass": "your_auth_code",
+  "senderName": "QQ机器人",
+  "subjectPrefix": "[群通知]",
+  "useSSL": true,
+  "enabled": true
+}
+```
+
+### 发送邮件
+
+```
+POST /api/plugin/napcat-plugin-email/send
+```
+
+**请求体**：
+```json
+{
+  "to": "recipient@example.com",
+  "subject": "邮件主题",
+  "content": "邮件正文内容",
+  "html": false
+}
+```
+
+**支持群发**：
+```json
+{
+  "to": "user1@qq.com,user2@qq.com,user3@163.com",
+  "subject": "群发测试",
+  "content": "这是一封群发邮件",
+  "html": false
+}
+```
+
+### 发送测试邮件
+
+```
+POST /api/plugin/napcat-plugin-email/test
+```
+
+**请求体**（可选，不提供则发送到配置的邮箱）：
+```json
+{
+  "to": "test@example.com"
+}
+```
+
+**响应示例**：
+```json
+{
+  "code": 0,
+  "message": "测试邮件发送成功",
+  "data": {
+    "messageId": "<abc123@qq.com>",
+    "recipient": "yourname@qq.com"
+  }
+}
+```
+
+### 获取插件状态
+
+```
+GET /api/plugin/napcat-plugin-email/status
+```
+
+**响应示例**：
+```json
+{
+  "code": 0,
+  "data": {
+    "enabled": true,
+    "configured": true,
+    "smtpHost": "smtp.qq.com",
+    "smtpUser": "yourname@qq.com",
+    "senderName": "QQ机器人",
+    "lastSendTime": "2026-02-10 14:30:00",
+    "totalSent": 128
+  }
+}
+```
 
 ## 📁 项目结构
 
 ```
-napcat-plugin-template/
+napcat-plugin-email/
 ├── src/
 │   ├── index.ts              # 插件入口，导出生命周期函数
 │   ├── config.ts             # 配置定义和 WebUI Schema
@@ -15,7 +318,8 @@ napcat-plugin-template/
 │   ├── handlers/
 │   │   └── message-handler.ts # 消息处理器（命令解析、CD 冷却、消息工具）
 │   ├── services/
-│   │   └── api-service.ts    # WebUI API 路由（无认证模式）
+│   │   ├── api-service.ts    # WebUI API 路由
+│   │   └── email-service.ts  # 邮件发送服务
 │   └── webui/                # React SPA 前端（独立构建）
 │       ├── index.html
 │       ├── package.json
@@ -23,13 +327,12 @@ napcat-plugin-template/
 │       ├── tailwind.config.js
 │       ├── tsconfig.json
 │       └── src/
-│           ├── App.tsx           # 应用根组件，页面路由
+│           ├── App.tsx           # 应用根组件
 │           ├── main.tsx          # React 入口
-│           ├── index.css         # TailwindCSS + 自定义样式
+│           ├── index.css         # 样式文件
 │           ├── types.ts          # 前端类型定义
-│           ├── vite-env.d.ts     # Vite 环境声明
 │           ├── utils/
-│           │   └── api.ts        # API 请求封装（noAuthFetch / authFetch）
+│           │   └── api.ts        # API 请求封装
 │           ├── hooks/
 │           │   ├── useStatus.ts  # 状态轮询 Hook
 │           │   ├── useTheme.ts   # 主题切换 Hook
@@ -42,375 +345,98 @@ napcat-plugin-template/
 │           └── pages/
 │               ├── StatusPage.tsx  # 仪表盘页面
 │               ├── ConfigPage.tsx  # 配置管理页面
-│               └── GroupsPage.tsx  # 群管理页面
-├── .github/
-│   ├── workflows/
-│   │   └── release.yml        # CI/CD 自动构建发布
-│   ├── prompt/
-│   │   ├── default.md             # 默认 Release Note 模板（回退用）
-│   │   └── ai-release-note.md     # （可选）AI Release Note 自定义 Prompt
-│   └── copilot-instructions.md  # Copilot 上下文说明
+│               └── SendPage.tsx    # 邮件发送页面
+├── dist/                     # 构建产物目录
 ├── package.json
 ├── tsconfig.json
-├── vite.config.ts             # Vite 构建配置（含资源复制插件）
+├── vite.config.ts
 └── README.md
 ```
 
-## 🚀 快速开始
+## 🛠️ 开发说明
 
-### 1. 安装依赖
+### 安装依赖
 
 ```bash
 pnpm install
 ```
 
-### 2. 修改插件信息
-
-编辑 `package.json`，修改以下字段：
-
-```json
-{
-    "name": "napcat-plugin-your-name",
-    "description": "你的插件描述",
-    "author": "你的名字"
-}
-```
-
-### 3. 开发你的功能
-
-- **添加配置项**: 编辑 `src/types.ts` 和 `src/config.ts`
-- **消息处理**: 编辑 `src/handlers/message-handler.ts`
-- **API 路由**: 编辑 `src/services/api-service.ts`
-- **状态管理**: 编辑 `src/core/state.ts`
-- **WebUI 页面**: 编辑 `src/webui/src/pages/` 下的页面组件
-- **WebUI 类型**: 同步更新 `src/webui/src/types.ts` 中的前端类型
-
-### 4. 构建 & 开发
+### 开发模式
 
 ```bash
-# 完整构建（自动构建 WebUI 前端 + 后端 + 资源复制，一步完成）
+# 完整构建
 pnpm run build
 
-# 仅构建 WebUI 前端（不构建后端）
-pnpm run build:webui
-
-# WebUI 前端开发服务器（实时预览，推荐纯前端开发时使用）
+# WebUI 前端开发服务器
 pnpm run dev:webui
 
-# 类型检查
-pnpm run typecheck
-```
-
-### 5. 调试 & 热重载
-
-项目通过 Vite 插件 `napcatHmrPlugin` 集成了热重载能力（已在 `vite.config.ts` 中配置），需要在 NapCat 端安装 `napcat-plugin-debug` 插件并启用。
-
-```bash
-# 一键部署：构建 → 自动复制到远程插件目录 → 自动重载
-pnpm run deploy
-
-# 开发模式：watch 构建 + 每次构建后自动部署 + 热重载（单进程）
+# 开发模式（watch + 热重载）
 pnpm run dev
+
+# 一键部署
+pnpm run deploy
 ```
 
-> `deploy` = `vite build`（构建完成时 Vite 插件自动部署+重载）  
-> `dev` = `vite build --watch`（每次重新构建后 Vite 插件自动部署+重载）
+### 构建产物
 
-> **注意**：`pnpm run dev` 仅监听**插件后端**（`src/` 下非 webui 的文件）的变化。修改 WebUI 前端代码后，随便改动一下后端文件即可触发重新构建（每次后端构建时会自动构建并部署 WebUI）。
->
-> 如果只开发 WebUI 前端，推荐使用 `pnpm run dev:webui` 启动前端开发服务器，可实时预览。
-
-`vite.config.ts` 中的 `copyAssetsPlugin` 会在每次构建时自动构建 WebUI 前端并复制产物，`napcatHmrPlugin()` 会自动连接调试服务 → 复制 dist/ 到远程 → 调用 reloadPlugin。
-
-如需自定义调试服务地址或 token：
-
-```typescript
-// vite.config.ts
-napcatHmrPlugin({
-  wsUrl: 'ws://192.168.1.100:8998',
-  token: 'mySecret',
-})
-```
-
-**CLI 交互模式（可选）：**
-
-```bash
-# 独立运行 CLI，进入交互模式（REPL）
-npx napcat-debug
-
-# 交互命令
-debug> list              # 列出所有插件
-debug> deploy            # 部署当前目录插件
-debug> reload <id>       # 重载指定插件
-debug> status            # 查看服务状态
-```
-
-构建产物在 `dist/` 目录下：
+构建产物位于 `dist/` 目录：
 
 ```
 dist/
-├── index.mjs           # 插件主入口（Vite 打包）
+├── index.mjs           # 插件主入口
 ├── package.json        # 清理后的 package.json
 └── webui/              # React SPA 构建产物
-    └── index.html      # 单文件 SPA（vite-plugin-singlefile）
+    └── index.html
 ```
 
-## 📖 架构说明
-
-### 分层架构
-
-```mermaid
-graph TD
-    Entry["index.ts (入口)<br/>生命周期钩子 + WebUI 路由/静态资源注册 + 事件分发"]
-    Entry --> Handlers["Handlers<br/>消息处理入口"]
-    Entry --> Services["Services<br/>业务逻辑"]
-    Entry --> WebUI["WebUI<br/>前端界面"]
-    Handlers --> State["core/state<br/>全局状态单例"]
-    Services --> State
-```
-
-### 核心设计模式
-
-| 模式 | 实现位置 | 说明 |
-|------|----------|------|
-| 单例状态 | `src/core/state.ts` | `pluginState` 全局单例，持有 ctx、config、logger |
-| 服务分层 | `src/services/*.ts` | 按职责拆分业务逻辑 |
-| 配置校验 | `sanitizeConfig()` | 类型安全的运行时配置验证 |
-| CD 冷却 | `cooldownMap` | `Map<groupId:command, expireTimestamp>` |
-
-## 🔧 生命周期函数
-
-| 导出 | 说明 |
-|------|------|
-| `plugin_init` | 插件初始化，加载配置、注册路由 |
-| `plugin_onmessage` | 消息事件处理 |
-| `plugin_cleanup` | 插件卸载，清理资源 |
-| `plugin_config_ui` | WebUI 配置 Schema |
-| `plugin_get_config` | 获取配置 |
-| `plugin_set_config` | 设置配置 |
-| `plugin_on_config_change` | 配置变更回调 |
-
-## 🌐 WebUI API 路由
-
-模板使用 **无认证路由**（`router.getNoAuth` / `router.postNoAuth`），适用于插件自带的 WebUI 页面调用。
-
-> NapCat 路由器提供两种注册方式：
-> - `router.get` / `router.post`：需要 NapCat WebUI 登录认证
-> - `router.getNoAuth` / `router.postNoAuth`：无需认证，插件 WebUI 页面可直接调用
-
-### 内置 API 接口
-
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| GET | `/info` | 获取插件信息 |
-| GET | `/status` | 获取运行状态、配置、统计 |
-| GET | `/config` | 获取当前配置 |
-| POST | `/config` | 保存配置（合并更新） |
-| GET | `/groups` | 获取群列表（含启用状态） |
-| POST | `/groups/:id/config` | 更新单个群配置 |
-| POST | `/groups/bulk-config` | 批量更新群配置 |
-
-### 前端调用方式
-
-```javascript
-// 无认证 API 请求
-const url = `/api/plugin/${PLUGIN_NAME}${path}`;
-const res = await fetch(url, {
-    headers: { 'Content-Type': 'application/json' },
-    ...options
-});
-```
-
-## 📝 编码约定
-
-### ESM 模块规范
-
-- `package.json` 中 `type: "module"`
-- 构建目标 `ESNext`，输出 `.mjs`
-
-### 状态访问模式
-
-```typescript
-import { pluginState } from '../core/state';
-
-// 读取配置
-const config = pluginState.config;
-
-// 记录日志（三级别）
-pluginState.log('info', '消息内容');
-pluginState.log('warn', '警告内容');
-pluginState.log('error', '错误内容', error);
-pluginState.logDebug('调试信息'); // 仅 debug 模式输出
-
-// 配置操作
-pluginState.setConfig(ctx, { key: value });       // 合并更新
-pluginState.replaceConfig(ctx, fullConfig);        // 完整替换
-pluginState.updateGroupConfig(ctx, groupId, cfg);  // 更新群配置
-pluginState.isGroupEnabled(groupId);               // 检查群启用状态
-
-// 调用 OneBot API
-await pluginState.callApi('send_group_msg', { group_id, message });
-
-// 统计
-pluginState.incrementProcessedCount();
-```
-
-### 消息发送模式
-
-```typescript
-import {
-    sendGroupMessage, sendPrivateMessage, sendGroupForwardMsg,
-    setMsgEmojiLike, uploadGroupFile,
-    textSegment, imageSegment, atSegment, replySegment, buildForwardNode
-} from '../handlers/message-handler';
-
-// 发送群消息（带回复）
-await sendGroupMessage(ctx, groupId, [
-    replySegment(messageId),
-    textSegment('消息内容')
-]);
-
-// 合并转发消息
-const nodes = [
-    buildForwardNode('10001', 'Bot', [textSegment('第一条')]),
-    buildForwardNode('10001', 'Bot', [textSegment('第二条')]),
-];
-await sendGroupForwardMsg(ctx, groupId, nodes);
-
-// 表情回复
-await setMsgEmojiLike(ctx, messageId, '76');
-
-// 上传群文件
-await uploadGroupFile(ctx, groupId, '/path/to/file.zip', 'file.zip');
-```
-
-### API 响应格式
-
-```typescript
-// 成功响应
-res.json({ code: 0, data: { ... } });
-
-// 错误响应
-res.status(500).json({ code: -1, message: '错误描述' });
-```
-
-## 🤖 AI 辅助开发
-
-项目内置了 NapCat API 的 Apifox MCP Server 配置（`.vscode/mcp.json`），在 VS Code 中配合 AI 助手（如 GitHub Copilot）使用时，可以直接查询 NapCat 的完整 API 文档。
-
-### 使用方式
-
-1. 使用 VS Code 打开本项目
-2. 确保已安装 [GitHub Copilot](https://marketplace.visualstudio.com/items?itemName=GitHub.copilot) 扩展
-3. 打开 Copilot Chat，MCP Server 会自动启动
-4. 在对话中即可让 AI 查询 NapCat API 接口信息，例如：
-   - *"NapCat 有哪些发送消息的 API？"*
-   - *"获取群列表的接口参数是什么？"*
-   - *"帮我调用 send_group_msg 发送一条群消息"*
-
-> MCP 配置位于 `.vscode/mcp.json`，使用 `apifox-mcp-server` 连接 NapCat 的 API 文档站点，无需额外配置。
-
-## 🚀 CI/CD 自动发布
-
-项目内置了两个 GitHub Actions 工作流：
-
-### 1. 自动构建发布（`release.yml`）
-
-推送 `v*` 格式的 tag 即可自动构建并创建 GitHub Release。
-
-```bash
-git tag v1.0.0
-git push origin v1.0.0
-```
-
-也可在 GitHub Actions 页面手动触发，可选填版本号。
-
-**基础自定义：**
-- 修改 `release.yml` 中的 `PLUGIN_NAME` 为你的插件名称
-- 默认 Release Note 模板位于 `.github/prompt/default.md`
-
-#### 🤖 AI 生成 Release Note（可选）
-
-支持接入任意兼容 OpenAI 格式的 AI API，自动根据 git commit 记录生成结构化的 Release Note。
-
-**配置方式：** 在插件仓库 **Settings > Secrets and variables > Actions** 中添加以下 Secrets：
-
-| Secret | 必填 | 说明 |
-|--------|------|------|
-| `AI_API_URL` | ✅ | 兼容 OpenAI 格式的 API 地址（如 `https://api.openai.com/v1/chat/completions`） |
-| `AI_API_KEY` | ✅ | 对应的 API 密钥 |
-| `AI_MODEL` | ❌ | 模型名称，默认 `gpt-4o-mini` |
-
-**工作逻辑：**
-- ✅ 配置了 `AI_API_URL` + `AI_API_KEY` → 自动调用 AI 生成 Release Note
-- ❌ 未配置或 AI 调用失败 → 自动回退到默认模板（`.github/prompt/default.md`）或 commit log
-- AI 调用失败不会阻断发布流程，始终保证 Release 正常创建
-
-**自定义 AI Prompt：** 创建 `.github/prompt/ai-release-note.md` 文件即可覆盖默认的 system prompt，支持 `{VERSION}` 占位符。
-
-> 💡 不配置任何 AI 相关的 Secret，发布流程与之前完全一致，无任何影响。
-
-### 2. 自动更新插件索引（`update-index.yml`）
-
-Release 发布后，会自动向 [napcat-plugin-index](https://github.com/NapNeko/napcat-plugin-index) 提交 PR 更新插件索引，**无需手动编辑 `plugins.v4.json`**。
-
-**完整流程：**
-
-```
-push tag → release.yml 构建发布 → update-index.yml 自动提交 PR → 索引仓库 CI 自动审核 → 维护者合并
-```
-
-**配置步骤：**
-
-1. **填写 `package.json` 中的插件元信息**（CI 会自动读取）：
-   ```json
-   {
-     "name": "napcat-plugin-your-name",
-     "plugin": "你的插件显示名",
-     "version": "1.0.0",
-     "description": "插件描述",
-     "author": "你的名字",
-     "napcat": {
-       "tags": ["工具"],
-       "minVersion": "4.14.0",
-       "homepage": "https://github.com/username/napcat-plugin-your-name"
-     }
-   }
-   ```
-
-   `napcat` 字段说明：
-
-   | 字段 | 说明 | 默认值 |
-   |------|------|--------|
-   | `tags` | 插件标签数组，用于分类 | `["工具"]` |
-   | `minVersion` | 支持的最低 NapCat 版本 | `"4.14.0"` |
-   | `homepage` | 插件主页 URL | 仓库地址 |
-
-2. **配置仓库 Secret**：在插件仓库 Settings > Secrets and variables > Actions 中添加：
-   - `INDEX_PAT`：一个有 `public_repo` 权限的 GitHub Personal Access Token，用于向索引仓库提交 PR
-
-3. **修改 `update-index.yml`**（可选）：如果索引仓库不是 `NapNeko/napcat-plugin-index`，修改 `INDEX_REPO` 环境变量
-
-> 💡 配置完成后，每次发布新版本只需 `git tag v1.x.x && git push origin v1.x.x`，一切自动完成！
-
-## 📦 部署
-
-### 方式一：一键部署（推荐开发时使用）
-
-确保 NapCat 端已安装并启用 `napcat-plugin-debug` 插件，然后：
-
-```bash
-pnpm run deploy
-```
-
-这会自动构建，`napcatHmrPlugin` 在构建完成后自动复制 `dist/` 到远程插件目录并触发热重载。
-
-### 方式二：手动部署
-
-将 `dist/` 目录的内容复制到 NapCat 的插件目录即可。
-
-> 💡 使用 CI/CD 自动发布后，可直接从 GitHub Release 下载 zip 包解压到 `plugins` 目录。
+## 🤝 贡献指南
+
+欢迎提交 Issue 和 Pull Request！
+
+### 提交 Issue
+- 描述问题时请提供详细的复现步骤
+- 附上相关的错误日志
+- 说明您的 NapCat 版本和插件版本
+
+### 开发贡献
+1. Fork 本仓库
+2. 创建您的功能分支 (`git checkout -b feature/AmazingFeature`)
+3. 提交您的更改 (`git commit -m 'Add some AmazingFeature'`)
+4. 推送到分支 (`git push origin feature/AmazingFeature`)
+5. 打开一个 Pull Request
+
+## ⚠️ 注意事项
+
+1. **授权码不是密码**：SMTP授权码是邮箱服务商提供的专用密码，不是您的邮箱登录密码
+2. **开启SMTP服务**：使用前请确保在邮箱设置中开启了SMTP服务
+3. **发送频率限制**：注意邮箱服务商的发送频率限制，避免触发风控
+4. **安全配置**：建议将敏感配置信息保存在安全的环境中
+5. **网络要求**：确保服务器能够访问SMTP服务器的端口（如465、587）
+6. **隐私保护**：请勿在公共场所分享包含授权码的配置信息
+
+## 📝 更新日志
+
+### v1.0.0 (2026-02-10)
+- ✨ 初始版本发布
+- 📧 支持通过QQ命令发送邮件
+- 🔧 支持SMTP服务器配置（QQ、163、Gmail等）
+- 🌐 提供WebUI配置面板
+- 🧪 支持测试邮件功能
+- 📤 支持群发邮件
+- 🔌 提供完整的RESTful API接口
 
 ## 📄 许可证
 
 MIT License
+
+---
+
+<div align="center">
+
+**⭐ 如果这个项目对你有帮助，请给它一个 Star！⭐**
+
+**维护者**：[MY-Final](https://github.com/MY-Final)  
+**问题反馈**：[GitHub Issues](https://github.com/MY-Final/napcat-plugin-email/issues)  
+**项目主页**：[https://github.com/MY-Final/napcat-plugin-email](https://github.com/MY-Final/napcat-plugin-email)
+
+</div>

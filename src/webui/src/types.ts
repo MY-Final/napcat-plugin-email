@@ -12,13 +12,40 @@ export interface PluginStatus {
     }
 }
 
+export interface SmtpConfig {
+    host: string
+    port: number
+    user: string
+    senderName: string
+    subjectPrefix: string
+    secure: boolean
+}
+
+export interface SmtpConfigWithPass extends SmtpConfig {
+    pass: string
+}
+
+export interface SendEmailParams {
+    to: string
+    subject: string
+    text?: string
+    html?: string
+}
+
 export interface PluginConfig {
     enabled: boolean
     debug: boolean
     commandPrefix: string
     cooldownSeconds: number
     groupConfigs?: Record<string, GroupConfig>
-    // TODO: 在这里添加你的插件配置项类型
+    emailCommandPrefix: string
+    smtpHost: string
+    smtpPort: number
+    smtpUser: string
+    smtpPass: string
+    smtpSenderName: string
+    smtpSubjectPrefix: string
+    smtpSecure: boolean
 }
 
 export interface GroupConfig {

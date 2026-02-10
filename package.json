@@ -1,24 +1,38 @@
 {
-  "name": "napcat-plugin-template",
-  "plugin": "插件模板",
+  "name": "napcat-plugin-email",
+  "plugin": "邮箱服务",
   "version": "1.0.0",
   "type": "module",
   "main": "index.mjs",
-  "description": "NapCat 插件开发模板 - 快速开始你的插件开发",
-  "author": "Your Name",
+  "description": "通过QQ命令发送邮件的NapCat插件，支持SMTP配置，可在QQ群/私聊中直接发送邮件",
+  "author": "MY-Final",
   "license": "MIT",
   "keywords": [
     "napcat",
     "plugin",
     "qq",
-    "template"
+    "email",
+    "smtp",
+    "mail",
+    "邮箱",
+    "邮件"
   ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MY-Final/napcat-plugin-email.git"
+  },
+  "bugs": {
+    "url": "https://github.com/MY-Final/napcat-plugin-email/issues"
+  },
+  "homepage": "https://github.com/MY-Final/napcat-plugin-email#readme",
   "napcat": {
     "tags": [
-      "工具"
+      "工具",
+      "邮件",
+      "SMTP"
     ],
     "minVersion": "4.14.0",
-    "homepage": ""
+    "homepage": "https://github.com/MY-Final/napcat-plugin-email"
   },
   "dependencies": {
     "napcat-types": "0.0.16"
@@ -27,7 +41,9 @@
     "@rollup/plugin-node-resolve": "^15.3.1",
     "@types/express": "^5.0.6",
     "@types/node": "^20.19.33",
+    "@types/nodemailer": "^7.0.9",
     "napcat-plugin-debug-cli": "^1.2.6",
+    "nodemailer": "^8.0.1",
     "typescript": "^5.9.3",
     "vite": "^6.4.1",
     "ws": "^8.19.0"

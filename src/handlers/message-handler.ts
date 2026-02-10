@@ -13,6 +13,7 @@
 import type { OB11Message, OB11PostSendMsg } from 'napcat-types/napcat-onebot';
 import type { NapCatPluginContext } from 'napcat-types/napcat-onebot/network/plugin/types';
 import { pluginState } from '../core/state';
+import { handleEmailCommand } from './email-handler';
 
 // ==================== CD 冷却管理 ====================
 
@@ -202,6 +203,17 @@ export async function handleMessage(ctx: NapCatPluginContext, event: OB11Message
             if (!pluginState.isGroupEnabled(String(groupId))) return;
         }
 
+        // 检查邮件命令前缀
+        const emailPrefix = pluginState.config.emailCommandPrefix || '#email';
+        if (rawMessage.startsWith(emailPrefix)) {
+            const emailArgs = rawMessage.slice(emailPrefix.length).trim().split(/\s+/);
+            const handled = await handleEmailCommand(ctx, event, emailArgs);
+            if (handled) {
+                pluginState.incrementProcessed();
+            }
+            return;
+        }
+
         // 检查命令前缀
         const prefix = pluginState.config.commandPrefix || '#cmd';
         if (!rawMessage.startsWith(prefix)) return;
@@ -210,7 +222,7 @@ export async function handleMessage(ctx: NapCatPluginContext, event: OB11Message
         const args = rawMessage.slice(prefix.length).trim().split(/\s+/);
         const subCommand = args[0]?.toLowerCase() || '';
 
-        // TODO: 在这里实现你的命令处理逻辑
+        // 命令处理逻辑
         switch (subCommand) {
             case 'help': {
                 const helpText = [

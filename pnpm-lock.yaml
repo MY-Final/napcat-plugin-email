@@ -21,9 +21,15 @@ importers:
       '@types/node':
         specifier: ^20.19.33
         version: 20.19.33
+      '@types/nodemailer':
+        specifier: ^7.0.9
+        version: 7.0.9
       napcat-plugin-debug-cli:
         specifier: ^1.2.6
         version: 1.2.6(vite@6.4.1(@types/node@20.19.33))(ws@8.19.0)
+      nodemailer:
+        specifier: ^8.0.1
+        version: 8.0.1
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
@@ -362,6 +368,9 @@ packages:
   '@types/node@22.19.10':
     resolution: {integrity: sha512-tF5VOugLS/EuDlTBijk0MqABfP8UxgYazTLo3uIn3b4yJgg26QRbVYJYsDtHrjdDUIRfP70+VfhTTc+CE1yskw==}
 
+  '@types/nodemailer@7.0.9':
+    resolution: {integrity: sha512-vI8oF1M+8JvQhsId0Pc38BdUP2evenIIys7c7p+9OZXSPOH5c1dyINP1jT8xQ2xPuBUXmIC87s+91IZMDjH8Ow==}
+
   '@types/qs@6.14.0':
     resolution: {integrity: sha512-eOunJqu0K1923aExK6y8p6fsihYEn/BYuQ4g0CxAAgFc4b/ZLN4CrsRZ55srTdqoiLzU2B2evC+apEIxprEzkQ==}
 
@@ -434,6 +443,10 @@ packages:
 
   napcat-types@0.0.16:
     resolution: {integrity: sha512-y3qhpdd16ATsMp4Jf88XwisFBVKqY+XSfvGX1YqMEasVFTNXeKr1MZrIzhHMkllW1QJZXAI8iNGVJO1gkHEtLQ==}
+
+  nodemailer@8.0.1:
+    resolution: {integrity: sha512-5kcldIXmaEjZcHR6F28IKGSgpmZHaF1IXLWFTG+Xh3S+Cce4MiakLtWY+PlBU69fLbRa8HlaGIrC/QolUpHkhg==}
+    engines: {node: '>=6.0.0'}
 
   path-parse@1.0.7:
     resolution: {integrity: sha512-LDJzPVEEEPR+y48z93A0Ed0yXb8pAByGWo/k5YYdYgpY2/2EsOsksJrq7lOHxryrVOn1ejG6oAp8ahvOIQD8sw==}
@@ -740,6 +753,10 @@ snapshots:
     dependencies:
       undici-types: 6.21.0
 
+  '@types/nodemailer@7.0.9':
+    dependencies:
+      '@types/node': 20.19.33
+
   '@types/qs@6.14.0': {}
 
   '@types/range-parser@1.2.7': {}
@@ -819,6 +836,8 @@ snapshots:
     dependencies:
       '@sinclair/typebox': 0.34.48
       '@types/node': 22.19.10
+
+  nodemailer@8.0.1: {}
 
   path-parse@1.0.7: {}
 

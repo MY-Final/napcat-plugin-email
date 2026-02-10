@@ -42,13 +42,24 @@ function sanitizeConfig(raw: unknown): PluginConfig {
             if (isObject(groupConfig)) {
                 const cfg: GroupConfig = {};
                 if (typeof groupConfig.enabled === 'boolean') cfg.enabled = groupConfig.enabled;
-                // TODO: 在这里添加你的群配置项清洗
                 out.groupConfigs[groupId] = cfg;
             }
         }
     }
 
-    // TODO: 在这里添加你的配置项清洗逻辑
+    // SMTP 配置清洗（扁平结构）
+    if (typeof raw.smtpHost === 'string') out.smtpHost = raw.smtpHost;
+    if (typeof raw.smtpPort === 'number') out.smtpPort = raw.smtpPort;
+    if (typeof raw.smtpUser === 'string') out.smtpUser = raw.smtpUser;
+    if (typeof raw.smtpPass === 'string') out.smtpPass = raw.smtpPass;
+    if (typeof raw.smtpSenderName === 'string') out.smtpSenderName = raw.smtpSenderName;
+    if (typeof raw.smtpSubjectPrefix === 'string') out.smtpSubjectPrefix = raw.smtpSubjectPrefix;
+    if (typeof raw.smtpSecure === 'boolean') out.smtpSecure = raw.smtpSecure;
+
+    // 邮件命令前缀清洗
+    if (typeof raw.emailCommandPrefix === 'string') {
+        out.emailCommandPrefix = raw.emailCommandPrefix;
+    }
 
     return out;
 }

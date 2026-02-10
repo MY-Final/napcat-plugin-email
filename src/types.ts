@@ -10,6 +10,40 @@
 // ==================== 插件配置 ====================
 
 /**
+ * SMTP 配置接口（扁平结构）
+ */
+export interface SmtpConfig {
+    /** SMTP 服务器地址 */
+    host: string;
+    /** SMTP 端口 */
+    port: number;
+    /** 邮箱账号 */
+    user: string;
+    /** SMTP 授权码 */
+    pass: string;
+    /** 发件人名称 */
+    senderName: string;
+    /** 邮件标题前缀 */
+    subjectPrefix: string;
+    /** 是否使用 SSL/TLS 加密 */
+    secure: boolean;
+}
+
+/**
+ * 发送邮件参数接口
+ */
+export interface SendEmailParams {
+    /** 收件人 */
+    to: string;
+    /** 主题 */
+    subject: string;
+    /** 纯文本内容 */
+    text?: string;
+    /** HTML 内容 */
+    html?: string;
+}
+
+/**
  * 插件主配置接口
  * 在此定义你的插件所需的所有配置项
  */
@@ -24,7 +58,22 @@ export interface PluginConfig {
     cooldownSeconds: number;
     /** 按群的单独配置 */
     groupConfigs: Record<string, GroupConfig>;
-    // TODO: 在这里添加你的插件配置项
+    /** 邮件命令前缀，默认为 #email */
+    emailCommandPrefix: string;
+    /** SMTP 服务器地址 */
+    smtpHost: string;
+    /** SMTP 端口 */
+    smtpPort: number;
+    /** 邮箱账号 */
+    smtpUser: string;
+    /** SMTP 授权码 */
+    smtpPass: string;
+    /** 发件人名称 */
+    smtpSenderName: string;
+    /** 邮件标题前缀 */
+    smtpSubjectPrefix: string;
+    /** 是否使用 SSL/TLS 加密 */
+    smtpSecure: boolean;
 }
 
 /**
