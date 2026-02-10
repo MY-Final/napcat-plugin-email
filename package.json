@@ -1,7 +1,7 @@
 {
   "name": "napcat-plugin-email",
   "plugin": "邮箱服务",
-  "version": "1.1.3",
+  "version": "1.1.4",
   "type": "module",
   "main": "index.mjs",
   "description": "通过QQ命令发送邮件的NapCat插件，支持SMTP配置，可在QQ群/私聊中直接发送邮件",

@@ -174,6 +174,60 @@ export interface UpdateScheduledEmailParams {
     maxSendCount?: number | null;
 }
 
+// ==================== 邮件历史记录 ====================
+
+/**
+ * 邮件发送类型
+ */
+export type EmailSendType = 'scheduled' | 'manual' | 'test';
+
+/**
+ * 邮件发送状态
+ */
+export type EmailSendStatus = 'success' | 'failed';
+
+/**
+ * 邮件历史记录接口
+ */
+export interface EmailHistory {
+    /** 记录唯一 ID */
+    id: string;
+    /** 发送类型：scheduled=定时任务, manual=手动发送, test=测试邮件 */
+    sendType: EmailSendType;
+    /** 收件人（多个用逗号分隔） */
+    to: string;
+    /** 邮件主题 */
+    subject: string;
+    /** 发送状态：success=成功, failed=失败 */
+    status: EmailSendStatus;
+    /** 错误信息（失败时记录） */
+    errorMessage?: string;
+    /** 发送时间 */
+    sentAt: string;
+    /** 关联的定时任务 ID（仅定时任务类型） */
+    scheduledEmailId?: string;
+    /** 附件数量 */
+    attachmentCount: number;
+}
+
+/**
+ * 邮件发送统计
+ */
+export interface EmailHistoryStats {
+    /** 总发送数 */
+    total: number;
+    /** 成功数 */
+    success: number;
+    /** 失败数 */
+    failed: number;
+    /** 定时任务发送数 */
+    scheduled: number;
+    /** 手动发送数 */
+    manual: number;
+    /** 测试邮件数 */
+    test: number;
+}
+
 // ==================== API 响应 ====================
 
 /**

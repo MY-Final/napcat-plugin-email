@@ -5,6 +5,7 @@
 
 import { pluginState } from '../core/state';
 import { sendEmail } from './email-service';
+import { emailHistoryService } from './email-history-service';
 import type { ScheduledEmail, CreateScheduledEmailParams, UpdateScheduledEmailParams, SendEmailParams } from '../types';
 
 // 数据文件名称
@@ -149,6 +150,17 @@ export async function executeScheduledEmail(email: ScheduledEmail): Promise<{ su
 
         const result = await sendEmail(sendParams);
         
+        // 保存历史记录
+        emailHistoryService.addRecord({
+            sendType: 'scheduled',
+            to: email.to,
+            subject: email.subject,
+            status: result.success ? 'success' : 'failed',
+            errorMessage: result.success ? undefined : result.message,
+            scheduledEmailId: email.id,
+            attachmentCount: email.attachments?.length || 0,
+        });
+
         if (result.success) {
             // 更新发送状态
             const now = new Date().toISOString();

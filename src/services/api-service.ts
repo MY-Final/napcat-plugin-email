@@ -34,6 +34,7 @@ import {
     executeScheduledEmail,
     validateScheduledEmailParams,
 } from './scheduled-email-service';
+import { emailHistoryService } from './email-history-service';
 import fs from 'fs';
 import path from 'path';
 
@@ -218,6 +219,16 @@ export function registerApiRoutes(ctx: NapCatPluginContext): void {
                 attachments: body.attachments,
             });
 
+            // 保存历史记录
+            emailHistoryService.addRecord({
+                sendType: 'manual',
+                to: recipients.join(','),
+                subject: body.subject,
+                status: result.success ? 'success' : 'failed',
+                errorMessage: result.success ? undefined : result.message,
+                attachmentCount: body.attachments?.length || 0,
+            });
+
             if (result.success) {
                 res.json({ code: 0, message: result.message });
             } else {
@@ -285,6 +296,17 @@ export function registerApiRoutes(ctx: NapCatPluginContext): void {
 
             // 发送测试邮件
             const result = await sendTestEmail(testEmail);
+            
+            // 保存历史记录
+            emailHistoryService.addRecord({
+                sendType: 'test',
+                to: testEmail,
+                subject: '测试邮件',
+                status: result.success ? 'success' : 'failed',
+                errorMessage: result.success ? undefined : result.message,
+                attachmentCount: 0,
+            });
+            
             if (result.success) {
                 res.json({ code: 0, message: result.message });
             } else {
@@ -443,6 +465,81 @@ export function registerApiRoutes(ctx: NapCatPluginContext): void {
             }
         } catch (err) {
             ctx.logger.error('执行定时邮件任务失败:', err);
+            res.status(500).json({ code: -1, message: String(err) });
+        }
+    });
+
+    // ==================== 邮件历史记录（无鉴权）====================
+
+    /** 获取邮件发送历史 */
+    router.getNoAuth('/email/history', (req, res) => {
+        try {
+            const query = req.query as Record<string, string>;
+            const page = parseInt(query.page || '1', 10);
+            const pageSize = parseInt(query.pageSize || '20', 10);
+            const sendType = query.sendType as import('../types').EmailSendType | undefined;
+            const status = query.status as import('../types').EmailSendStatus | undefined;
+
+            const result = emailHistoryService.getHistory({
+                page,
+                pageSize,
+                sendType,
+                status,
+            });
+
+            res.json({ code: 0, data: result });
+        } catch (err) {
+            ctx.logger.error('获取邮件历史记录失败:', err);
+            res.status(500).json({ code: -1, message: String(err) });
+        }
+    });
+
+    /** 获取邮件发送统计 */
+    router.getNoAuth('/email/stats', (_req, res) => {
+        try {
+            const stats = emailHistoryService.getStats();
+            const todayStats = emailHistoryService.getTodayStats();
+
+            res.json({
+                code: 0,
+                data: {
+                    total: stats,
+                    today: todayStats,
+                },
+            });
+        } catch (err) {
+            ctx.logger.error('获取邮件发送统计失败:', err);
+            res.status(500).json({ code: -1, message: String(err) });
+        }
+    });
+
+    /** 删除单条历史记录 */
+    router.deleteNoAuth('/email/history/:id', (req, res) => {
+        try {
+            const id = req.params?.id;
+            if (!id) {
+                return res.status(400).json({ code: -1, message: '缺少记录 ID' });
+            }
+
+            const success = emailHistoryService.deleteRecord(id);
+            if (!success) {
+                return res.status(404).json({ code: -1, message: '记录不存在' });
+            }
+
+            res.json({ code: 0, message: '删除成功' });
+        } catch (err) {
+            ctx.logger.error('删除邮件历史记录失败:', err);
+            res.status(500).json({ code: -1, message: String(err) });
+        }
+    });
+
+    /** 清空历史记录 */
+    router.postNoAuth('/email/history/clear', (_req, res) => {
+        try {
+            emailHistoryService.clearHistory();
+            res.json({ code: 0, message: '历史记录已清空' });
+        } catch (err) {
+            ctx.logger.error('清空邮件历史记录失败:', err);
             res.status(500).json({ code: -1, message: String(err) });
         }
     });

@@ -90,3 +90,36 @@ export interface ScheduledEmail {
     maxSendCount?: number | null
     errorMessage?: string
 }
+
+// ==================== 邮件历史记录 ====================
+
+export type EmailSendType = 'scheduled' | 'manual' | 'test'
+export type EmailSendStatus = 'success' | 'failed'
+
+export interface EmailHistory {
+    id: string
+    sendType: EmailSendType
+    to: string
+    subject: string
+    status: EmailSendStatus
+    errorMessage?: string
+    sentAt: string
+    scheduledEmailId?: string
+    attachmentCount: number
+}
+
+export interface EmailHistoryStats {
+    total: number
+    success: number
+    failed: number
+    scheduled: number
+    manual: number
+    test: number
+}
+
+export interface EmailHistoryResponse {
+    list: EmailHistory[]
+    total: number
+    page: number
+    pageSize: number
+}

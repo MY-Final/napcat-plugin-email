@@ -15,6 +15,7 @@ import path from 'path';
 import type { NapCatPluginContext, PluginLogger } from 'napcat-types/napcat-onebot/network/plugin/types';
 import { DEFAULT_CONFIG } from '../config';
 import type { PluginConfig, GroupConfig } from '../types';
+import { emailHistoryService } from '../services/email-history-service';
 
 // ==================== 配置清洗工具 ====================
 
@@ -107,6 +108,7 @@ class PluginState {
         this.ensureDataDir();
         this.fetchSelfId();
         this.startScheduledEmailChecker();
+        emailHistoryService.init(ctx.dataPath);
     }
 
     /**
