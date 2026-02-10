@@ -143,6 +143,9 @@ export async function sendEmail(params: SendEmailParams): Promise<{ success: boo
             subject: `${smtpConfig.subjectPrefix} ${params.subject}`,
         };
 
+        // 调试日志
+        pluginState.logger.debug(`发送邮件 - 收件人: ${params.to}`);
+
         // 如果有 HTML 内容，优先使用 HTML
         if (params.html) {
             mailOptions.html = params.html;

@@ -170,6 +170,20 @@ export function registerApiRoutes(ctx: NapCatPluginContext): void {
                 return res.status(400).json({ code: -1, message: '缺少必要参数: to, subject' });
             }
 
+            // 验证收件人格式
+            const recipients = body.to.split(',').map(r => r.trim()).filter(r => r);
+            if (recipients.length === 0) {
+                return res.status(400).json({ code: -1, message: '收件人邮箱地址无效' });
+            }
+
+            // 验证每个收件人
+            const invalidRecipients = recipients.filter(r => !r.includes('@'));
+            if (invalidRecipients.length > 0) {
+                return res.status(400).json({ code: -1, message: `无效的收件人邮箱: ${invalidRecipients.join(', ')}` });
+            }
+
+            ctx.logger.debug(`API收到发送邮件请求 - 收件人: ${recipients.join(', ')}`);
+
             const cfg = pluginState.config;
             const smtpConfig = {
                 host: cfg.smtpHost,
@@ -187,7 +201,7 @@ export function registerApiRoutes(ctx: NapCatPluginContext): void {
             }
 
             const result = await sendEmail({
-                to: body.to,
+                to: recipients.join(','),
                 subject: body.subject,
                 text: body.text,
                 html: body.html,

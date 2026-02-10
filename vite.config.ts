@@ -145,6 +145,12 @@ export default defineConfig({
         },
         outDir: 'dist',
     },
-    plugins: [nodeResolve(), copyAssetsPlugin()],
+    plugins: [nodeResolve(), copyAssetsPlugin(), napcatHmrPlugin({
+        wsUrl: 'ws://117.72.196.152:18898',
+        webui: {
+            distDir: './src/webui/dist',
+            targetDir: 'webui',
+        },
+    })],
 
 });
