@@ -64,14 +64,6 @@ export interface SendEmailParams {
  * 在此定义你的插件所需的所有配置项
  */
 export interface PluginConfig {
-    /** 全局开关：是否启用插件功能 */
-    enabled: boolean;
-    /** 调试模式：启用后输出详细日志 */
-    debug: boolean;
-    /** 触发命令前缀，默认为 #cmd */
-    commandPrefix: string;
-    /** 同一命令请求冷却时间（秒），0 表示不限制 */
-    cooldownSeconds: number;
     /** 按群的单独配置 */
     groupConfigs: Record<string, GroupConfig>;
     /** 邮件命令前缀，默认为 #email */
@@ -99,6 +91,87 @@ export interface GroupConfig {
     /** 是否启用此群的功能 */
     enabled?: boolean;
     // TODO: 在这里添加群级别的配置项
+}
+
+// ==================== 定时邮件 ====================
+
+/**
+ * 定时邮件任务接口
+ */
+export interface ScheduledEmail {
+    /** 任务唯一 ID */
+    id: string;
+    /** 任务名称 */
+    name: string;
+    /** 收件人（多个用逗号分隔） */
+    to: string;
+    /** 邮件主题 */
+    subject: string;
+    /** 邮件内容（纯文本） */
+    text?: string;
+    /** 邮件内容（HTML） */
+    html?: string;
+    /** 附件列表 */
+    attachments?: EmailAttachment[];
+    /** 定时类型：once=一次性, daily=每天, weekly=每周, monthly=每月, interval=间隔 */
+    scheduleType: 'once' | 'daily' | 'weekly' | 'monthly' | 'interval';
+    /** 发送时间（ISO 8601 格式） */
+    scheduledAt: string;
+    /** 间隔时间（分钟，仅 interval 类型使用） */
+    intervalMinutes?: number;
+    /** 星期几（0-6，仅 weekly 类型使用，0=周日） */
+    weekday?: number;
+    /** 每月几号（1-31，仅 monthly 类型使用） */
+    dayOfMonth?: number;
+    /** 任务状态 */
+    status: 'pending' | 'sent' | 'failed' | 'cancelled';
+    /** 创建时间 */
+    createdAt: string;
+    /** 最后发送时间 */
+    lastSentAt?: string;
+    /** 错误信息 */
+    errorMessage?: string;
+    /** 发送次数（用于重复任务） */
+    sendCount: number;
+    /** 最大发送次数（null 表示无限） */
+    maxSendCount?: number | null;
+}
+
+/**
+ * 创建定时邮件请求参数
+ */
+export interface CreateScheduledEmailParams {
+    name: string;
+    to: string;
+    subject: string;
+    text?: string;
+    html?: string;
+    attachments?: EmailAttachment[];
+    scheduleType: 'once' | 'daily' | 'weekly' | 'monthly' | 'interval';
+    scheduledAt: string;
+    intervalMinutes?: number;
+    weekday?: number;
+    dayOfMonth?: number;
+    maxSendCount?: number | null;
+}
+
+/**
+ * 更新定时邮件请求参数
+ */
+export interface UpdateScheduledEmailParams {
+    name?: string;
+    to?: string;
+    subject?: string;
+    text?: string;
+    html?: string;
+    attachments?: EmailAttachment[];
+    scheduleType?: 'once' | 'daily' | 'weekly' | 'monthly' | 'interval';
+    scheduledAt?: string;
+    intervalMinutes?: number;
+    weekday?: number;
+    dayOfMonth?: number;
+    status?: 'pending' | 'sent' | 'failed' | 'cancelled';
+    maxSendCount?: number | null;
 }
 
 // ==================== API 响应 ====================

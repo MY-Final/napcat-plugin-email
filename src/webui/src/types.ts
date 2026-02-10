@@ -33,10 +33,6 @@ export interface SendEmailParams {
 }
 
 export interface PluginConfig {
-    enabled: boolean
-    debug: boolean
-    commandPrefix: string
-    cooldownSeconds: number
     groupConfigs?: Record<string, GroupConfig>
     emailCommandPrefix: string
     smtpHost: string
@@ -72,4 +68,25 @@ export interface EmailAttachment {
     filename: string
     path: string
     contentType: string
+}
+
+export interface ScheduledEmail {
+    id: string
+    name: string
+    to: string
+    subject: string
+    text?: string
+    html?: string
+    attachments?: EmailAttachment[]
+    scheduleType: 'once' | 'daily' | 'weekly' | 'monthly' | 'interval'
+    scheduledAt: string
+    intervalMinutes?: number
+    weekday?: number
+    dayOfMonth?: number
+    status: 'pending' | 'sent' | 'failed' | 'cancelled'
+    createdAt: string
+    lastSentAt?: string
+    sendCount: number
+    maxSendCount?: number | null
+    errorMessage?: string
 }

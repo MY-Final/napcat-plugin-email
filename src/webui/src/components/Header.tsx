@@ -11,7 +11,7 @@ interface HeaderProps {
 }
 
 export default function Header({ title, description, isScrolled, status, currentPage }: HeaderProps) {
-    const isEnabled = status?.config?.enabled ?? false
+    const isConnected = !!status
 
     return (
         <header
@@ -37,9 +37,9 @@ export default function Header({ title, description, isScrolled, status, current
                 </div>
             ) : (
                 <div className="header-badge flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-[#1e1e20] rounded-lg border border-gray-200 dark:border-gray-800">
-                    <div className={`status-dot ${status ? (isEnabled ? 'online' : 'offline') : ''}`} />
+                    <div className={`status-dot ${isConnected ? 'online' : ''}`} />
                     <span className="text-xs font-medium text-gray-600 dark:text-gray-300">
-                        {status ? (isEnabled ? '运行中' : '已停用') : '连接中...'}
+                        {isConnected ? '运行中' : '连接中...'}
                     </span>
                 </div>
             )}

@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'react'
 import type { PluginStatus } from '../types'
-import { IconPower, IconClock, IconActivity, IconDownload, IconRefresh, IconTerminal } from '../components/icons'
+import { IconPower, IconClock, IconActivity, IconDownload } from '../components/icons'
 
 interface StatusPageProps {
     status: PluginStatus | null
-    onRefresh: () => void
 }
 
 /** 将毫秒格式化为可读时长 */
@@ -21,7 +20,7 @@ function formatUptime(uptimeMs: number): string {
     return `${secs}秒`
 }
 
-export default function StatusPage({ status, onRefresh }: StatusPageProps) {
+export default function StatusPage({ status }: StatusPageProps) {
     const [displayUptime, setDisplayUptime] = useState<string>('-')
     const [syncInfo, setSyncInfo] = useState<{ baseUptime: number; syncTime: number } | null>(null)
 
@@ -53,15 +52,15 @@ export default function StatusPage({ status, onRefresh }: StatusPageProps) {
         )
     }
 
-    const { config, stats } = status
+    const { stats } = status
 
     const statCards = [
         {
             label: '插件状态',
-            value: config.enabled ? '运行中' : '已停用',
+            value: '运行中',
             icon: <IconPower size={18} />,
-            color: config.enabled ? 'text-emerald-500' : 'text-red-400',
-            bg: config.enabled ? 'bg-emerald-500/10' : 'bg-red-500/10',
+            color: 'text-emerald-500',
+            bg: 'bg-emerald-500/10',
         },
         {
             label: '运行时长',
@@ -103,33 +102,6 @@ export default function StatusPage({ status, onRefresh }: StatusPageProps) {
                 ))}
             </div>
 
-            {/* 配置概览 */}
-            <div className="card p-5 hover-lift animate-fade-in-up">
-                <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                        <IconTerminal size={16} className="text-gray-400" />
-                        基础信息
-                    </h3>
-                    <button onClick={onRefresh} className="btn-ghost btn text-xs px-2.5 py-1.5">
-                        <IconRefresh size={13} />
-                        刷新
-                    </button>
-                </div>
-                <div className="space-y-3">
-                    <InfoRow label="命令前缀" value={config.commandPrefix} />
-                    <InfoRow label="冷却时间" value={`${config.cooldownSeconds} 秒`} />
-                    <InfoRow label="调试模式" value={config.debug ? '开启' : '关闭'} />
-                </div>
-            </div>
-        </div>
-    )
-}
-
-function InfoRow({ label, value }: { label: string; value: string }) {
-    return (
-        <div className="flex items-center justify-between py-1">
-            <span className="text-xs text-gray-400">{label}</span>
-            <span className="text-xs font-medium text-gray-700 dark:text-gray-300">{value}</span>
         </div>
     )
 }

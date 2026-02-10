@@ -31,11 +31,6 @@ function sanitizeConfig(raw: unknown): PluginConfig {
 
     const out: PluginConfig = { ...DEFAULT_CONFIG, groupConfigs: {} };
 
-    if (typeof raw.enabled === 'boolean') out.enabled = raw.enabled;
-    if (typeof raw.debug === 'boolean') out.debug = raw.debug;
-    if (typeof raw.commandPrefix === 'string') out.commandPrefix = raw.commandPrefix;
-    if (typeof raw.cooldownSeconds === 'number') out.cooldownSeconds = raw.cooldownSeconds;
-
     // 群配置清洗
     if (isObject(raw.groupConfigs)) {
         for (const [groupId, groupConfig] of Object.entries(raw.groupConfigs)) {
@@ -111,6 +106,7 @@ class PluginState {
         this.loadConfig();
         this.ensureDataDir();
         this.fetchSelfId();
+        this.startScheduledEmailChecker();
     }
 
     /**
@@ -134,6 +130,9 @@ class PluginState {
      * 清理（在 plugin_cleanup 中调用）
      */
     cleanup(): void {
+        // 停止定时邮件检查器
+        this.stopScheduledEmailChecker();
+        
         // 清理所有定时器
         for (const [jobId, timer] of this.timers) {
             clearInterval(timer);
@@ -285,6 +284,46 @@ class PluginState {
         }
         this.stats.todayProcessed++;
         this.stats.processed++;
+    }
+
+    // ==================== 定时邮件管理 ====================
+
+    /**
+     * 启动定时邮件检查器
+     * 每分钟检查一次是否有到期的定时邮件任务
+     */
+    private startScheduledEmailChecker(): void {
+        // 避免重复启动
+        if (this.timers.has('scheduledEmailChecker')) {
+            return;
+        }
+
+        // 每分钟检查一次
+        const CHECK_INTERVAL = 60 * 1000; // 60秒
+
+        const checker = setInterval(async () => {
+            try {
+                const { checkAndExecuteScheduledEmails } = await import('../services/scheduled-email-service');
+                await checkAndExecuteScheduledEmails();
+            } catch (err) {
+                this.logger.error('定时邮件检查器执行失败:', err);
+            }
+        }, CHECK_INTERVAL);
+
+        this.timers.set('scheduledEmailChecker', checker);
+        this.logger.debug('定时邮件检查器已启动（每分钟检查一次）');
+    }
+
+    /**
+     * 停止定时邮件检查器
+     */
+    private stopScheduledEmailChecker(): void {
+        const checker = this.timers.get('scheduledEmailChecker');
+        if (checker) {
+            clearInterval(checker);
+            this.timers.delete('scheduledEmailChecker');
+            this.logger.debug('定时邮件检查器已停止');
+        }
     }
 
     // ==================== 工具方法 ====================

@@ -25,7 +25,7 @@ const cooldownMap = new Map<string, number>();
  * @returns 剩余秒数，0 表示可用
  */
 function getCooldownRemaining(groupId: number | string, command: string): number {
-    const cdSeconds = pluginState.config.cooldownSeconds ?? 60;
+    const cdSeconds = 60; // 硬编码冷却时间
     if (cdSeconds <= 0) return 0;
 
     const key = `${groupId}:${command}`;
@@ -42,7 +42,7 @@ function getCooldownRemaining(groupId: number | string, command: string): number
 
 /** 设置 CD 冷却 */
 function setCooldown(groupId: number | string, command: string): void {
-    const cdSeconds = pluginState.config.cooldownSeconds ?? 60;
+    const cdSeconds = 60; // 硬编码冷却时间
     if (cdSeconds <= 0) return;
     cooldownMap.set(`${groupId}:${command}`, Date.now() + cdSeconds * 1000);
 }
@@ -215,7 +215,7 @@ export async function handleMessage(ctx: NapCatPluginContext, event: OB11Message
         }
 
         // 检查命令前缀
-        const prefix = pluginState.config.commandPrefix || '#cmd';
+        const prefix = '#cmd'; // 硬编码命令前缀
         if (!rawMessage.startsWith(prefix)) return;
 
         // 解析命令参数

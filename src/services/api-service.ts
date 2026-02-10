@@ -23,7 +23,17 @@ import type {
 } from 'napcat-types/napcat-onebot/network/plugin/types';
 import { pluginState } from '../core/state';
 import { sendEmail, sendTestEmail, testSmtpConnection, validateSmtpConfig } from './email-service';
-import type { SendEmailParams } from '../types';
+import type { SendEmailParams, CreateScheduledEmailParams, UpdateScheduledEmailParams } from '../types';
+import {
+    getScheduledEmails,
+    getScheduledEmailById,
+    createScheduledEmail,
+    updateScheduledEmail,
+    deleteScheduledEmail,
+    cancelScheduledEmail,
+    executeScheduledEmail,
+    validateScheduledEmailParams,
+} from './scheduled-email-service';
 import fs from 'fs';
 import path from 'path';
 
@@ -282,6 +292,157 @@ export function registerApiRoutes(ctx: NapCatPluginContext): void {
             }
         } catch (err) {
             ctx.logger.error('测试邮件失败:', err);
+            res.status(500).json({ code: -1, message: String(err) });
+        }
+    });
+
+    // ==================== 定时邮件管理（无鉴权）====================
+
+    /** 获取所有定时邮件任务 */
+    router.getNoAuth('/scheduled-emails', (_req, res) => {
+        try {
+            const emails = getScheduledEmails();
+            res.json({ code: 0, data: emails });
+        } catch (err) {
+            ctx.logger.error('获取定时邮件列表失败:', err);
+            res.status(500).json({ code: -1, message: String(err) });
+        }
+    });
+
+    /** 获取单个定时邮件任务 */
+    router.getNoAuth('/scheduled-emails/:id', (req, res) => {
+        try {
+            const id = req.params?.id;
+            if (!id) {
+                return res.status(400).json({ code: -1, message: '缺少任务 ID' });
+            }
+
+            const email = getScheduledEmailById(id);
+            if (!email) {
+                return res.status(404).json({ code: -1, message: '定时邮件任务不存在' });
+            }
+
+            res.json({ code: 0, data: email });
+        } catch (err) {
+            ctx.logger.error('获取定时邮件任务失败:', err);
+            res.status(500).json({ code: -1, message: String(err) });
+        }
+    });
+
+    /** 创建定时邮件任务 */
+    router.postNoAuth('/scheduled-emails', async (req, res) => {
+        try {
+            const body = req.body as CreateScheduledEmailParams | undefined;
+            if (!body) {
+                return res.status(400).json({ code: -1, message: '请求体为空' });
+            }
+
+            // 验证参数
+            const validation = validateScheduledEmailParams(body);
+            if (!validation.valid) {
+                return res.status(400).json({ code: -1, message: validation.message });
+            }
+
+            const email = createScheduledEmail(body);
+            ctx.logger.info(`创建定时邮件任务: ${email.name} (${email.id})`);
+            res.json({ code: 0, data: email });
+        } catch (err) {
+            ctx.logger.error('创建定时邮件任务失败:', err);
+            res.status(500).json({ code: -1, message: String(err) });
+        }
+    });
+
+    /** 更新定时邮件任务 */
+    router.putNoAuth('/scheduled-emails/:id', async (req, res) => {
+        try {
+            const id = req.params?.id;
+            if (!id) {
+                return res.status(400).json({ code: -1, message: '缺少任务 ID' });
+            }
+
+            const body = req.body as UpdateScheduledEmailParams | undefined;
+            if (!body) {
+                return res.status(400).json({ code: -1, message: '请求体为空' });
+            }
+
+            const email = updateScheduledEmail(id, body);
+            if (!email) {
+                return res.status(404).json({ code: -1, message: '定时邮件任务不存在' });
+            }
+
+            ctx.logger.info(`更新定时邮件任务: ${email.name} (${email.id})`);
+            res.json({ code: 0, data: email });
+        } catch (err) {
+            ctx.logger.error('更新定时邮件任务失败:', err);
+            res.status(500).json({ code: -1, message: String(err) });
+        }
+    });
+
+    /** 删除定时邮件任务 */
+    router.deleteNoAuth('/scheduled-emails/:id', (req, res) => {
+        try {
+            const id = req.params?.id;
+            if (!id) {
+                return res.status(400).json({ code: -1, message: '缺少任务 ID' });
+            }
+
+            const success = deleteScheduledEmail(id);
+            if (!success) {
+                return res.status(404).json({ code: -1, message: '定时邮件任务不存在' });
+            }
+
+            ctx.logger.info(`删除定时邮件任务: ${id}`);
+            res.json({ code: 0, message: '删除成功' });
+        } catch (err) {
+            ctx.logger.error('删除定时邮件任务失败:', err);
+            res.status(500).json({ code: -1, message: String(err) });
+        }
+    });
+
+    /** 取消定时邮件任务 */
+    router.postNoAuth('/scheduled-emails/:id/cancel', (req, res) => {
+        try {
+            const id = req.params?.id;
+            if (!id) {
+                return res.status(400).json({ code: -1, message: '缺少任务 ID' });
+            }
+
+            const success = cancelScheduledEmail(id);
+            if (!success) {
+                return res.status(404).json({ code: -1, message: '定时邮件任务不存在' });
+            }
+
+            ctx.logger.info(`取消定时邮件任务: ${id}`);
+            res.json({ code: 0, message: '取消成功' });
+        } catch (err) {
+            ctx.logger.error('取消定时邮件任务失败:', err);
+            res.status(500).json({ code: -1, message: String(err) });
+        }
+    });
+
+    /** 立即执行定时邮件任务 */
+    router.postNoAuth('/scheduled-emails/:id/execute', async (req, res) => {
+        try {
+            const id = req.params?.id;
+            if (!id) {
+                return res.status(400).json({ code: -1, message: '缺少任务 ID' });
+            }
+
+            const email = getScheduledEmailById(id);
+            if (!email) {
+                return res.status(404).json({ code: -1, message: '定时邮件任务不存在' });
+            }
+
+            ctx.logger.info(`手动执行定时邮件任务: ${email.name} (${email.id})`);
+            const result = await executeScheduledEmail(email);
+
+            if (result.success) {
+                res.json({ code: 0, message: result.message });
+            } else {
+                res.status(500).json({ code: -1, message: result.message });
+            }
+        } catch (err) {
+            ctx.logger.error('执行定时邮件任务失败:', err);
             res.status(500).json({ code: -1, message: String(err) });
         }
     });

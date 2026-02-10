@@ -2,45 +2,66 @@ import { useState, useEffect, useCallback } from 'react'
 import { noAuthFetch } from '../utils/api'
 import { showToast } from '../hooks/useToast'
 import type { PluginConfig } from '../types'
-import { IconTerminal } from '../components/icons'
+import { IconSettings } from '../components/icons'
 
 export default function ConfigPage() {
     const [config, setConfig] = useState<PluginConfig | null>(null)
     const [saving, setSaving] = useState(false)
+    const [formData, setFormData] = useState({
+        smtpHost: '',
+        smtpPort: 465,
+        smtpUser: '',
+        smtpPass: '',
+        smtpSenderName: 'QQ Bot',
+        smtpSubjectPrefix: '[QQ Bot]',
+        smtpSecure: true,
+        emailCommandPrefix: '#email',
+    })
 
     const fetchConfig = useCallback(async () => {
         try {
             const res = await noAuthFetch<PluginConfig>('/config')
-            if (res.code === 0 && res.data) setConfig(res.data)
-        } catch { showToast('获取配置失败', 'error') }
+            if (res.code === 0 && res.data) {
+                setConfig(res.data)
+                setFormData({
+                    smtpHost: res.data.smtpHost || '',
+                    smtpPort: res.data.smtpPort || 465,
+                    smtpUser: res.data.smtpUser || '',
+                    smtpPass: res.data.smtpPass || '',
+                    smtpSenderName: res.data.smtpSenderName || 'QQ Bot',
+                    smtpSubjectPrefix: res.data.smtpSubjectPrefix || '[QQ Bot]',
+                    smtpSecure: res.data.smtpSecure !== false,
+                    emailCommandPrefix: res.data.emailCommandPrefix || '#email',
+                })
+            }
+        } catch {
+            showToast('获取配置失败', 'error')
+        }
     }, [])
 
     useEffect(() => { fetchConfig() }, [fetchConfig])
 
-    const saveConfig = useCallback(async (update: Partial<PluginConfig>) => {
+    const saveConfig = useCallback(async () => {
         if (!config) return
         setSaving(true)
         try {
-            const newConfig = { ...config, ...update }
-            await noAuthFetch('/config', {
+            const newConfig = { ...config, ...formData }
+            const res = await noAuthFetch('/config', {
                 method: 'POST',
                 body: JSON.stringify(newConfig),
             })
-            setConfig(newConfig)
-            showToast('配置已保存', 'success')
+            if (res.code === 0) {
+                setConfig(newConfig)
+                showToast('配置已保存', 'success')
+            } else {
+                throw new Error(res.message)
+            }
         } catch {
-            showToast('保存失败', 'error')
+            showToast('保存配置失败', 'error')
         } finally {
             setSaving(false)
         }
-    }, [config])
-
-    const updateField = <K extends keyof PluginConfig>(key: K, value: PluginConfig[K]) => {
-        if (!config) return
-        const updated = { ...config, [key]: value }
-        setConfig(updated)
-        saveConfig({ [key]: value })
-    }
+    }, [config, formData])
 
     if (!config) {
         return (
@@ -55,48 +76,81 @@ export default function ConfigPage() {
 
     return (
         <div className="space-y-6 stagger-children">
-            {/* 基础配置 */}
+            {/* SMTP 配置 */}
             <div className="card p-5 hover-lift">
                 <h3 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2 mb-5">
-                    <IconTerminal size={16} className="text-gray-400" />
-                    基础配置
+                    <IconSettings size={16} className="text-gray-400" />
+                    SMTP 配置
                 </h3>
                 <div className="space-y-5">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <InputRow
+                            label="SMTP 服务器地址"
+                            desc="如 smtp.qq.com"
+                            value={formData.smtpHost}
+                            onChange={(v) => setFormData(prev => ({ ...prev, smtpHost: v }))}
+                        />
+                        <InputRow
+                            label="SMTP 端口"
+                            desc="通常为 465 或 587"
+                            value={String(formData.smtpPort)}
+                            type="number"
+                            onChange={(v) => setFormData(prev => ({ ...prev, smtpPort: Number(v) || 465 }))}
+                        />
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <InputRow
+                            label="邮箱账号"
+                            desc="用于发送邮件的邮箱"
+                            value={formData.smtpUser}
+                            onChange={(v) => setFormData(prev => ({ ...prev, smtpUser: v }))}
+                        />
+                        <InputRow
+                            label="SMTP 授权码"
+                            desc="邮箱的 SMTP 授权码"
+                            value={formData.smtpPass}
+                            type="password"
+                            onChange={(v) => setFormData(prev => ({ ...prev, smtpPass: v }))}
+                        />
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <InputRow
+                            label="发件人名称"
+                            desc="显示在邮件中的名称"
+                            value={formData.smtpSenderName}
+                            onChange={(v) => setFormData(prev => ({ ...prev, smtpSenderName: v }))}
+                        />
+                        <InputRow
+                            label="邮件标题前缀"
+                            desc="如 [QQ Bot]"
+                            value={formData.smtpSubjectPrefix}
+                            onChange={(v) => setFormData(prev => ({ ...prev, smtpSubjectPrefix: v }))}
+                        />
+                    </div>
                     <ToggleRow
-                        label="启用插件"
-                        desc="全局开关，关闭后不响应任何命令"
-                        checked={config.enabled}
-                        onChange={(v) => updateField('enabled', v)}
-                    />
-                    <ToggleRow
-                        label="调试模式"
-                        desc="启用后输出详细日志到控制台"
-                        checked={config.debug}
-                        onChange={(v) => updateField('debug', v)}
+                        label="使用 SSL/TLS 加密"
+                        desc="建议开启以确保安全"
+                        checked={formData.smtpSecure}
+                        onChange={(v) => setFormData(prev => ({ ...prev, smtpSecure: v }))}
                     />
                     <InputRow
-                        label="命令前缀"
-                        desc="触发命令的前缀"
-                        value={config.commandPrefix}
-                        onChange={(v) => updateField('commandPrefix', v)}
+                        label="邮件命令前缀"
+                        desc="触发邮件命令的前缀"
+                        value={formData.emailCommandPrefix}
+                        onChange={(v) => setFormData(prev => ({ ...prev, emailCommandPrefix: v }))}
                     />
-                    <InputRow
-                        label="冷却时间 (秒)"
-                        desc="同一命令请求冷却时间，0 表示不限制"
-                        value={String(config.cooldownSeconds)}
-                        type="number"
-                        onChange={(v) => updateField('cooldownSeconds', Number(v) || 0)}
-                    />
-                    {/* TODO: 在这里添加你的配置项 */}
+                    <div className="flex justify-end">
+                        <button
+                            onClick={saveConfig}
+                            disabled={saving}
+                            className="px-4 py-2 bg-primary text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center gap-2"
+                        >
+                            {saving && <div className="loading-spinner !w-4 !h-4 !border-[1.5px]" />}
+                            保存配置
+                        </button>
+                    </div>
                 </div>
             </div>
-
-            {saving && (
-                <div className="saving-indicator fixed bottom-4 right-4 bg-primary text-white text-xs px-3 py-2 rounded-lg shadow-lg flex items-center gap-2">
-                    <div className="loading-spinner !w-3 !h-3 !border-[1.5px]" />
-                    保存中...
-                </div>
-            )}
         </div>
     )
 }

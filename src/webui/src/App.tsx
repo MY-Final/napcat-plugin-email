@@ -6,16 +6,18 @@ import StatusPage from './pages/StatusPage'
 import ConfigPage from './pages/ConfigPage'
 import GroupsPage from './pages/GroupsPage'
 import EmailPage from './pages/EmailPage'
+import ScheduledEmailPage from './pages/ScheduledEmailPage'
 import { useStatus } from './hooks/useStatus'
 import { useTheme } from './hooks/useTheme'
 
-export type PageId = 'status' | 'config' | 'groups' | 'email'
+export type PageId = 'status' | 'config' | 'groups' | 'email' | 'scheduled'
 
 const pageConfig: Record<PageId, { title: string; desc: string }> = {
     status: { title: '仪表盘', desc: '插件运行状态与数据概览' },
     config: { title: '插件配置', desc: '基础设置与参数配置' },
     groups: { title: '群管理', desc: '管理群的启用与禁用' },
-    email: { title: '邮箱服务', desc: 'SMTP 配置与邮件发送' }
+    email: { title: '邮箱服务', desc: 'SMTP 配置与邮件发送' },
+    scheduled: { title: '定时邮件', desc: '管理定时发送的邮件任务' }
 }
 
 function App() {
@@ -37,11 +39,12 @@ function App() {
 
     const renderPage = () => {
         switch (currentPage) {
-            case 'status': return <StatusPage status={status} onRefresh={fetchStatus} />
+            case 'status': return <StatusPage status={status} />
             case 'config': return <ConfigPage />
             case 'groups': return <GroupsPage />
             case 'email': return <EmailPage />
-            default: return <StatusPage status={status} onRefresh={fetchStatus} />
+            case 'scheduled': return <ScheduledEmailPage />
+            default: return <StatusPage status={status} />
         }
     }
 
