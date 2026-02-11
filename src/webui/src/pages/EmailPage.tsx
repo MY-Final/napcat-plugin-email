@@ -109,8 +109,8 @@ export default function EmailPage() {
         if (!files || files.length === 0) return
         try {
             for (const file of Array.from(files)) {
-                if (file.size > 10 * 1024 * 1024) {
-                    showToast(`文件 ${file.name} 太大（最大 10MB）`, 'error')
+                if (file.size > 1024 * 1024 * 1024) {
+                    showToast(`文件 ${file.name} 太大（最大 1GB）`, 'error')
                     continue
                 }
                 const attachment = await handleFileUpload(file)
@@ -312,7 +312,7 @@ export default function EmailPage() {
                     {/* 附件上传区域 */}
                     <div>
                         <div className="text-sm font-medium text-gray-800 dark:text-gray-200 mb-1">附件</div>
-                        <div className="text-xs text-gray-400 mb-2">支持多个文件，单个文件最大 10MB</div>
+                        <div className="text-xs text-gray-400 mb-2">支持多个文件，单个文件最大 1GB</div>
                         <div className="flex items-center gap-3">
                             <input
                                 ref={fileInputRef}
