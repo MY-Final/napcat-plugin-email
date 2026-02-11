@@ -2,32 +2,11 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { noAuthFetch } from '../utils/api'
 import { showToast } from '../hooks/useToast'
+import type { ScheduledEmail as BackendScheduledEmail, EmailAttachment, EmailAccount } from '../types'
 import { IconClock, IconPlus, IconEdit, IconTrash, IconPlay, IconX, IconCheck } from '../components/icons'
 
-interface ScheduledEmail {
-    id: string
-    name: string
-    to: string
-    subject: string
-    text?: string
-    html?: string
-    scheduleType: 'once' | 'daily' | 'weekly' | 'monthly' | 'interval'
-    scheduledAt: string
-    intervalMinutes?: number
-    weekday?: number
-    dayOfMonth?: number
-    status: 'pending' | 'sent' | 'failed' | 'cancelled'
-    createdAt: string
-    lastSentAt?: string
-    sendCount: number
-    maxSendCount?: number | null
-    errorMessage?: string
-}
-
-interface EmailAttachment {
-    filename: string
-    path?: string
-    contentType?: string
+interface ScheduledEmail extends BackendScheduledEmail {
+    accountId: string
 }
 
 const scheduleTypeLabels: Record<string, string> = {
@@ -47,41 +26,69 @@ const statusLabels: Record<string, { label: string; color: string }> = {
 
 const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
 
+interface FormData {
+    name: string
+    accountId: string
+    to: string
+    subject: string
+    text: string
+    html: string
+    scheduleType: 'once' | 'daily' | 'weekly' | 'monthly' | 'interval'
+    scheduledAt: string
+    intervalMinutes: number
+    weekday: number
+    dayOfMonth: number
+    maxSendCount: number | null
+}
+
 export default function ScheduledEmailPage() {
-    const [emails, setEmails] = useState<ScheduledEmail[]>([])
+    const [emails, setEmails] = useState<BackendScheduledEmail[]>([])
+    const [accounts, setAccounts] = useState<EmailAccount[]>([])
     const [loading, setLoading] = useState(false)
     const [showModal, setShowModal] = useState(false)
     const [editingId, setEditingId] = useState<string | null>(null)
-    const [formData, setFormData] = useState({
+    const [formData, setFormData] = useState<FormData>({
         name: '',
+        accountId: '',
         to: '',
         subject: '',
         text: '',
         html: '',
-        scheduleType: 'once' as ScheduledEmail['scheduleType'],
+        scheduleType: 'once',
         scheduledAt: '',
         intervalMinutes: 60,
         weekday: 1,
         dayOfMonth: 1,
-        maxSendCount: null as number | null,
+        maxSendCount: null,
     })
 
-    // 模态框打开时锁定 body 滚动
     useEffect(() => {
-        if (showModal) {
-            document.body.style.overflow = 'hidden'
-        } else {
-            document.body.style.overflow = ''
+        fetchAccounts()
+    }, [])
+
+    const fetchAccounts = async () => {
+        try {
+            const res = await noAuthFetch<EmailAccount[]>('/email/accounts')
+            if (res.code === 0 && res.data) {
+                const accountsData = res.data
+                setAccounts(accountsData)
+                // 如果有默认账号，默认选中
+                const defaultAccount = accountsData.find(a => a.isDefault)
+                if (defaultAccount) {
+                    setFormData(prev => ({ ...prev, accountId: defaultAccount.id }))
+                } else if (accountsData.length > 0) {
+                    setFormData(prev => ({ ...prev, accountId: accountsData[0].id }))
+                }
+            }
+        } catch {
+            showToast('获取邮箱账号失败', 'error')
         }
-        return () => {
-            document.body.style.overflow = ''
-        }
-    }, [showModal])
+    }
 
     const fetchEmails = useCallback(async () => {
         setLoading(true)
         try {
-            const res = await noAuthFetch<ScheduledEmail[]>('/scheduled-emails')
+            const res = await noAuthFetch<BackendScheduledEmail[]>('/scheduled-emails')
             if (res.code === 0 && res.data) {
                 setEmails(res.data)
             }
@@ -99,6 +106,10 @@ export default function ScheduledEmailPage() {
     }, [fetchEmails])
 
     const handleCreate = async () => {
+        if (!formData.accountId) {
+            showToast('请选择邮箱账号', 'error')
+            return
+        }
         try {
             const res = await noAuthFetch('/scheduled-emails', {
                 method: 'POST',
@@ -189,14 +200,22 @@ export default function ScheduledEmailPage() {
 
     const openCreateModal = () => {
         resetForm()
+        // 如果有默认账号，自动选中
+        const defaultAccount = accounts.find(a => a.isDefault)
+        if (defaultAccount) {
+            setFormData(prev => ({ ...prev, accountId: defaultAccount.id }))
+        } else if (accounts.length > 0) {
+            setFormData(prev => ({ ...prev, accountId: accounts[0].id }))
+        }
         setEditingId(null)
         setShowModal(true)
     }
 
-    const openEditModal = (email: ScheduledEmail) => {
+    const openEditModal = (email: BackendScheduledEmail) => {
         setEditingId(email.id)
         setFormData({
             name: email.name,
+            accountId: email.accountId,
             to: email.to,
             subject: email.subject,
             text: email.text || '',
@@ -214,6 +233,7 @@ export default function ScheduledEmailPage() {
     const resetForm = () => {
         setFormData({
             name: '',
+            accountId: '',
             to: '',
             subject: '',
             text: '',
@@ -237,9 +257,27 @@ export default function ScheduledEmailPage() {
         return date.toLocaleString('zh-CN')
     }
 
+    const getAccountName = (accountId: string): string => {
+        const account = accounts.find(a => a.id === accountId)
+        return account ? `${account.name} (${account.user})` : '未知账号'
+    }
+
+    if (accounts.length === 0) {
+        return (
+            <div className="space-y-6 stagger-children">
+                <div className="card p-8 text-center">
+                    <div className="text-gray-400 dark:text-gray-500 mb-2">
+                        <IconClock size={48} className="mx-auto opacity-50" />
+                    </div>
+                    <p className="text-gray-600 dark:text-gray-400">请先配置邮箱账号</p>
+                    <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">前往配置页面添加邮箱账号后再创建定时任务</p>
+                </div>
+            </div>
+        )
+    }
+
     return (
         <div className="space-y-6 stagger-children">
-            {/* 标题栏 */}
             <div className="flex items-center justify-between">
                 <div>
                     <h2 className="text-lg font-semibold text-gray-900 dark:text-white">定时邮件任务</h2>
@@ -254,7 +292,6 @@ export default function ScheduledEmailPage() {
                 </button>
             </div>
 
-            {/* 任务列表 */}
             {loading && emails.length === 0 ? (
                 <div className="flex items-center justify-center h-64">
                     <div className="loading-spinner text-primary" />
@@ -285,6 +322,7 @@ export default function ScheduledEmailPage() {
                                         </span>
                                     </div>
                                     <div className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
+                                        <p><span className="text-gray-400">账号:</span> {getAccountName(email.accountId)}</p>
                                         <p><span className="text-gray-400">收件人:</span> {email.to}</p>
                                         <p><span className="text-gray-400">主题:</span> {email.subject}</p>
                                         <p>
@@ -344,17 +382,15 @@ export default function ScheduledEmailPage() {
                 </div>
             )}
 
-            {/* 创建/编辑模态框 - 使用 Portal 确保在最上层显示 */}
             {showModal && createPortal(
-                <div 
+                <div
                     className="fixed inset-0 bg-black/70 flex items-center justify-center p-2 sm:p-4 z-[9999]"
                     onClick={() => setShowModal(false)}
                 >
-                    <div 
+                    <div
                         className="bg-white dark:bg-[#1a1b1d] rounded-2xl w-full max-w-5xl max-h-[calc(100vh-2rem)] sm:max-h-[calc(100vh-4rem)] flex flex-col shadow-2xl animate-modal-enter overflow-hidden"
                         onClick={e => e.stopPropagation()}
                     >
-                        {/* 头部 */}
                         <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200 dark:border-gray-800 flex-shrink-0">
                             <h3 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">
                                 {editingId ? '编辑定时邮件' : '新建定时邮件'}
@@ -367,10 +403,8 @@ export default function ScheduledEmailPage() {
                             </button>
                         </div>
 
-                        {/* 可滚动内容区 */}
                         <div className="flex-1 overflow-y-auto p-4 sm:p-6">
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-6 lg:gap-x-8 gap-y-5 lg:gap-y-6">
-                                {/* 左列：基本信息 */}
                                 <div className="space-y-5">
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
@@ -383,6 +417,24 @@ export default function ScheduledEmailPage() {
                                             className="input-field"
                                             placeholder="输入任务名称"
                                         />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                                            发件邮箱账号 *
+                                        </label>
+                                        <select
+                                            value={formData.accountId}
+                                            onChange={(e) => setFormData({ ...formData, accountId: e.target.value })}
+                                            className="input-field"
+                                        >
+                                            <option value="">请选择账号</option>
+                                            {accounts.map((account) => (
+                                                <option key={account.id} value={account.id}>
+                                                    {account.name} {account.isDefault && '(默认)'} - {account.user}
+                                                </option>
+                                            ))}
+                                        </select>
                                     </div>
 
                                     <div>
@@ -424,7 +476,6 @@ export default function ScheduledEmailPage() {
                                     </div>
                                 </div>
 
-                                {/* 右列：定时设置 */}
                                 <div className="space-y-5">
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -447,7 +498,6 @@ export default function ScheduledEmailPage() {
                                         </div>
                                     </div>
 
-                                    {/* 根据类型显示不同的输入 */}
                                     {formData.scheduleType === 'once' && (
                                         <div>
                                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
@@ -548,7 +598,6 @@ export default function ScheduledEmailPage() {
                                         </div>
                                     )}
 
-                                    {/* 最大发送次数 */}
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
                                             最大发送次数（留空表示无限）
@@ -569,7 +618,6 @@ export default function ScheduledEmailPage() {
                             </div>
                         </div>
 
-                        {/* 底部按钮 */}
                         <div className="flex justify-end gap-3 px-4 sm:px-6 py-3 sm:py-4 border-t border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-[#1a1b1d] flex-shrink-0">
                             <button
                                 onClick={() => setShowModal(false)}

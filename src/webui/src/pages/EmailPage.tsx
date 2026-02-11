@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { noAuthFetch } from '../utils/api'
 import { showToast } from '../hooks/useToast'
-import type { PluginConfig, SendEmailParams, EmailAttachment } from '../types'
-import { IconMail, IconSend, IconTestTube, IconPaperclip, IconCode, IconX } from '../components/icons'
+import type { PluginConfig, SendEmailParams, EmailAttachment, EmailAccount } from '../types'
+import { IconMail, IconSend, IconTestTube, IconPaperclip, IconCode, IconX, IconStar } from '../components/icons'
 
 interface UploadResponse {
     path: string;
@@ -12,6 +12,9 @@ interface UploadResponse {
 
 export default function EmailPage() {
     const [config, setConfig] = useState<PluginConfig | null>(null)
+    const [accounts, setAccounts] = useState<EmailAccount[]>([])
+    const [defaultAccountId, setDefaultAccountId] = useState<string | null>(null)
+    const [selectedAccountId, setSelectedAccountId] = useState<string>('')
     const [testEmail, setTestEmail] = useState('')
     const [sendForm, setSendForm] = useState<SendEmailParams>({
         to: '',
@@ -31,6 +34,14 @@ export default function EmailPage() {
             const res = await noAuthFetch<PluginConfig>('/config')
             if (res.code === 0 && res.data) {
                 setConfig(res.data)
+                setAccounts(res.data.emailAccounts || [])
+                setDefaultAccountId(res.data.defaultAccountId || null)
+                // 设置默认选中的账号
+                if (res.data.defaultAccountId) {
+                    setSelectedAccountId(res.data.defaultAccountId)
+                } else if (res.data.emailAccounts && res.data.emailAccounts.length > 0) {
+                    setSelectedAccountId(res.data.emailAccounts[0].id)
+                }
             }
         } catch {
             showToast('获取配置失败', 'error')
@@ -40,16 +51,25 @@ export default function EmailPage() {
     useEffect(() => { fetchConfig() }, [fetchConfig])
 
     const testSmtpConfig = useCallback(async () => {
-        const testTo = testEmail || config?.smtpUser
-        if (!testTo) {
+        if (!selectedAccountId && accounts.length > 0) {
+            showToast('请选择要测试的邮箱账号', 'error')
+            return
+        }
+
+        const targetEmail = testEmail || accounts.find(a => a.id === selectedAccountId)?.user
+        if (!targetEmail) {
             showToast('请输入测试邮箱地址', 'error')
             return
         }
+
         setLoading(prev => ({ ...prev, test: true }))
         try {
             const res = await noAuthFetch('/email/test', {
                 method: 'POST',
-                body: JSON.stringify({ to: testTo }),
+                body: JSON.stringify({
+                    to: targetEmail,
+                    accountId: selectedAccountId || undefined,
+                }),
             })
             if (res.code === 0) {
                 showToast('测试邮件发送成功', 'success')
@@ -61,7 +81,7 @@ export default function EmailPage() {
         } finally {
             setLoading(prev => ({ ...prev, test: false }))
         }
-    }, [testEmail, config?.smtpUser])
+    }, [testEmail, selectedAccountId, accounts])
 
     const handleFileUpload = useCallback(async (file: File) => {
         const reader = new FileReader()
@@ -97,7 +117,7 @@ export default function EmailPage() {
                 setAttachments(prev => [...prev, attachment])
                 showToast(`文件 ${file.name} 上传成功`, 'success')
             }
-        } catch (err) {
+        } catch {
             showToast('文件上传失败', 'error')
         }
         e.target.value = ''
@@ -112,6 +132,10 @@ export default function EmailPage() {
             showToast('请填写收件人和主题', 'error')
             return
         }
+        if (!selectedAccountId && accounts.length > 0) {
+            showToast('请选择要使用的邮箱账号', 'error')
+            return
+        }
         if (!isHtmlMode && !sendForm.text) {
             showToast('请填写邮件内容', 'error')
             return
@@ -123,6 +147,7 @@ export default function EmailPage() {
         setLoading(prev => ({ ...prev, send: true }))
         try {
             const payload = {
+                accountId: selectedAccountId || undefined,
                 ...sendForm,
                 attachments: attachments.length > 0 ? attachments : undefined,
             }
@@ -143,7 +168,7 @@ export default function EmailPage() {
         } finally {
             setLoading(prev => ({ ...prev, send: false }))
         }
-    }, [sendForm, attachments, isHtmlMode])
+    }, [sendForm, attachments, isHtmlMode, selectedAccountId, accounts])
 
     if (!config) {
         return (
@@ -156,6 +181,8 @@ export default function EmailPage() {
         )
     }
 
+    const selectedAccount = accounts.find(a => a.id === selectedAccountId)
+
     return (
         <div className="space-y-6 stagger-children">
             {/* 测试邮件 */}
@@ -165,11 +192,27 @@ export default function EmailPage() {
                     测试邮件
                 </h3>
                 <div className="space-y-4">
+                    <div>
+                        <div className="text-sm font-medium text-gray-800 dark:text-gray-200 mb-1">选择账号</div>
+                        <div className="text-xs text-gray-400 mb-2">选择要测试的邮箱账号</div>
+                        <select
+                            value={selectedAccountId}
+                            onChange={(e) => setSelectedAccountId(e.target.value)}
+                            className="input-field"
+                        >
+                            <option value="">请选择账号</option>
+                            {accounts.map((account) => (
+                                <option key={account.id} value={account.id}>
+                                    {account.name} {account.isDefault && '(默认)'}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
                     <InputRow
                         label="测试邮箱地址"
-                        desc="留空则发送到配置的邮箱账号"
+                        desc="留空则发送到选中的账号邮箱"
                         value={testEmail}
-                        placeholder={config.smtpUser}
+                        placeholder={selectedAccount?.user || 'user@example.com'}
                         onChange={setTestEmail}
                     />
                     <div className="flex justify-end">
@@ -193,6 +236,22 @@ export default function EmailPage() {
                     发送邮件
                 </h3>
                 <div className="space-y-4">
+                    <div>
+                        <div className="text-sm font-medium text-gray-800 dark:text-gray-200 mb-1">选择发件账号</div>
+                        <div className="text-xs text-gray-400 mb-2">选择要用于发送此邮件的邮箱账号</div>
+                        <select
+                            value={selectedAccountId}
+                            onChange={(e) => setSelectedAccountId(e.target.value)}
+                            className="input-field"
+                        >
+                            <option value="">请选择账号</option>
+                            {accounts.map((account) => (
+                                <option key={account.id} value={account.id}>
+                                    {account.name} {account.isDefault && '(默认)'} - {account.user}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <InputRow
                             label="收件人"

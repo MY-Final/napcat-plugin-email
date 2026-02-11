@@ -38,11 +38,18 @@ export function getScheduledEmailById(id: string): ScheduledEmail | undefined {
  */
 export function createScheduledEmail(params: CreateScheduledEmailParams): ScheduledEmail {
     const emails = getScheduledEmails();
-    
+
+    // 验证账号是否存在
+    const account = pluginState.getEmailAccountById(params.accountId);
+    if (!account) {
+        throw new Error(`邮箱账号不存在: ${params.accountId}`);
+    }
+
     const now = new Date().toISOString();
     const scheduledEmail: ScheduledEmail = {
         id: generateId(),
         name: params.name,
+        accountId: params.accountId,
         to: params.to,
         subject: params.subject,
         text: params.text,
@@ -61,9 +68,9 @@ export function createScheduledEmail(params: CreateScheduledEmailParams): Schedu
 
     emails.push(scheduledEmail);
     saveScheduledEmails(emails);
-    
-    pluginState.logger.info(`创建定时邮件任务: ${scheduledEmail.name} (${scheduledEmail.id})`);
-    
+
+    pluginState.logger.info(`创建定时邮件任务: ${scheduledEmail.name} (${scheduledEmail.id}), 账号: ${account.name}`);
+
     return scheduledEmail;
 }
 
@@ -141,6 +148,7 @@ export function cancelScheduledEmail(id: string): boolean {
 export async function executeScheduledEmail(email: ScheduledEmail): Promise<{ success: boolean; message: string }> {
     try {
         const sendParams: SendEmailParams = {
+            accountId: email.accountId,
             to: email.to,
             subject: email.subject,
             text: email.text,
@@ -149,10 +157,11 @@ export async function executeScheduledEmail(email: ScheduledEmail): Promise<{ su
         };
 
         const result = await sendEmail(sendParams);
-        
+
         // 保存历史记录
         emailHistoryService.addRecord({
             sendType: 'scheduled',
+            accountId: email.accountId,
             to: email.to,
             subject: email.subject,
             text: email.text,
@@ -320,41 +329,51 @@ export function validateScheduledEmailParams(params: CreateScheduledEmailParams)
     if (!params.name || params.name.trim() === '') {
         return { valid: false, message: '任务名称不能为空' };
     }
-    
+
+    // 验证邮箱账号
+    if (!params.accountId) {
+        return { valid: false, message: '请选择邮箱账号' };
+    }
+
+    const account = pluginState.getEmailAccountById(params.accountId);
+    if (!account) {
+        return { valid: false, message: '邮箱账号不存在' };
+    }
+
     if (!params.to || params.to.trim() === '') {
         return { valid: false, message: '收件人不能为空' };
     }
-    
+
     // 验证收件人邮箱格式
     const recipients = params.to.split(',').map(r => r.trim()).filter(r => r);
     if (recipients.length === 0) {
         return { valid: false, message: '收件人邮箱地址无效' };
     }
-    
+
     const invalidRecipients = recipients.filter(r => !r.includes('@'));
     if (invalidRecipients.length > 0) {
         return { valid: false, message: `无效的收件人邮箱: ${invalidRecipients.join(', ')}` };
     }
-    
+
     if (!params.subject || params.subject.trim() === '') {
         return { valid: false, message: '邮件主题不能为空' };
     }
-    
+
     if (!params.scheduledAt) {
         return { valid: false, message: '发送时间不能为空' };
     }
-    
+
     // 验证发送时间是否为有效日期
     const scheduledDate = new Date(params.scheduledAt);
     if (isNaN(scheduledDate.getTime())) {
         return { valid: false, message: '发送时间格式无效' };
     }
-    
+
     // 一次性任务必须是在未来的时间
     if (params.scheduleType === 'once' && scheduledDate <= new Date()) {
         return { valid: false, message: '一次性任务的发送时间必须在将来' };
     }
-    
+
     // 验证不同类型特有的参数
     switch (params.scheduleType) {
         case 'interval':
@@ -362,24 +381,24 @@ export function validateScheduledEmailParams(params: CreateScheduledEmailParams)
                 return { valid: false, message: '间隔时间必须大于 0 分钟' };
             }
             break;
-            
+
         case 'weekly':
             if (params.weekday === undefined || params.weekday < 0 || params.weekday > 6) {
                 return { valid: false, message: '请选择有效的星期几（0-6，0=周日）' };
             }
             break;
-            
+
         case 'monthly':
             if (params.dayOfMonth === undefined || params.dayOfMonth < 1 || params.dayOfMonth > 31) {
                 return { valid: false, message: '请选择有效的日期（1-31）' };
             }
             break;
     }
-    
+
     // 验证最大发送次数
     if (params.maxSendCount !== undefined && params.maxSendCount !== null && params.maxSendCount <= 0) {
         return { valid: false, message: '最大发送次数必须大于 0' };
     }
-    
+
     return { valid: true, message: '参数有效' };
 }

@@ -30,6 +30,66 @@ export interface SmtpConfig {
 }
 
 /**
+ * 邮箱账号配置
+ */
+export interface EmailAccount {
+    /** 账号唯一 ID */
+    id: string;
+    /** 账号名称（显示名称） */
+    name: string;
+    /** 是否默认账号 */
+    isDefault: boolean;
+    /** SMTP 服务器地址 */
+    host: string;
+    /** SMTP 端口 */
+    port: number;
+    /** 邮箱账号 */
+    user: string;
+    /** SMTP 授权码 */
+    pass: string;
+    /** 发件人名称 */
+    senderName: string;
+    /** 邮件标题前缀 */
+    subjectPrefix: string;
+    /** 是否使用 SSL/TLS 加密 */
+    secure: boolean;
+    /** 创建时间 */
+    createdAt: string;
+    /** 最后修改时间 */
+    updatedAt: string;
+}
+
+/**
+ * 创建邮箱账号请求参数
+ */
+export interface CreateEmailAccountParams {
+    name: string;
+    host: string;
+    port: number;
+    user: string;
+    pass: string;
+    senderName: string;
+    subjectPrefix: string;
+    secure: boolean;
+    isDefault?: boolean;
+}
+
+/**
+ * 更新邮箱账号请求参数
+ */
+export interface UpdateEmailAccountParams {
+    name?: string;
+    host?: string;
+    port?: number;
+    user?: string;
+    pass?: string;
+    senderName?: string;
+    subjectPrefix?: string;
+    secure?: boolean;
+    isDefault?: boolean;
+}
+
+/**
  * 邮件附件接口
  */
 export interface EmailAttachment {
@@ -47,6 +107,8 @@ export interface EmailAttachment {
  * 发送邮件参数接口
  */
 export interface SendEmailParams {
+    /** 使用的邮箱账号 ID（可选，不传则使用默认账号） */
+    accountId?: string;
     /** 收件人 */
     to: string;
     /** 主题 */
@@ -68,20 +130,21 @@ export interface PluginConfig {
     groupConfigs: Record<string, GroupConfig>;
     /** 邮件命令前缀，默认为 #email */
     emailCommandPrefix: string;
-    /** SMTP 服务器地址 */
-    smtpHost: string;
-    /** SMTP 端口 */
-    smtpPort: number;
-    /** 邮箱账号 */
-    smtpUser: string;
-    /** SMTP 授权码 */
-    smtpPass: string;
-    /** 发件人名称 */
-    smtpSenderName: string;
-    /** 邮件标题前缀 */
-    smtpSubjectPrefix: string;
-    /** 是否使用 SSL/TLS 加密 */
-    smtpSecure: boolean;
+
+    /** 邮箱账号列表 */
+    emailAccounts: EmailAccount[];
+
+    /** 默认账号 ID（兼容旧版本，迁移后使用） */
+    defaultAccountId: string | null;
+
+    /** 旧版 SMTP 配置（迁移期间保留，用于兼容旧数据） */
+    smtpHost?: string;
+    smtpPort?: number;
+    smtpUser?: string;
+    smtpPass?: string;
+    smtpSenderName?: string;
+    smtpSubjectPrefix?: string;
+    smtpSecure?: boolean;
 }
 
 /**
@@ -103,6 +166,8 @@ export interface ScheduledEmail {
     id: string;
     /** 任务名称 */
     name: string;
+    /** 使用的邮箱账号 ID */
+    accountId: string;
     /** 收件人（多个用逗号分隔） */
     to: string;
     /** 邮件主题 */
@@ -142,6 +207,7 @@ export interface ScheduledEmail {
  */
 export interface CreateScheduledEmailParams {
     name: string;
+    accountId: string;
     to: string;
     subject: string;
     text?: string;
@@ -160,6 +226,7 @@ export interface CreateScheduledEmailParams {
  */
 export interface UpdateScheduledEmailParams {
     name?: string;
+    accountId?: string;
     to?: string;
     subject?: string;
     text?: string;
@@ -194,6 +261,8 @@ export interface EmailHistory {
     id: string;
     /** 发送类型：scheduled=定时任务, manual=手动发送, test=测试邮件 */
     sendType: EmailSendType;
+    /** 使用的邮箱账号 ID */
+    accountId: string;
     /** 收件人（多个用逗号分隔） */
     to: string;
     /** 邮件主题 */

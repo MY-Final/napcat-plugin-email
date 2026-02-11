@@ -5,7 +5,7 @@
 
 import nodemailer from 'nodemailer';
 import type { Transporter } from 'nodemailer';
-import type { SmtpConfig, SendEmailParams, EmailAttachment } from '../types';
+import type { SmtpConfig, SendEmailParams, EmailAttachment, EmailAccount } from '../types';
 import { pluginState } from '../core/state';
 import fs from 'fs';
 import path from 'path';
@@ -108,21 +108,57 @@ function getMimeType(ext: string): string {
 }
 
 /**
+ * 根据账号获取 SMTP 配置
+ * @param accountId 邮箱账号 ID（可选）
+ * @returns SMTP 配置
+ */
+function getSmtpConfigByAccount(accountId?: string): { smtpConfig: SmtpConfig; account: EmailAccount | undefined } {
+    let account: EmailAccount | undefined;
+
+    if (accountId) {
+        account = pluginState.getEmailAccountById(accountId);
+    }
+
+    // 如果没有指定账号或找不到，使用默认账号
+    if (!account) {
+        account = pluginState.getDefaultEmailAccount();
+    }
+
+    if (!account) {
+        return {
+            smtpConfig: {
+                host: '',
+                port: 465,
+                user: '',
+                pass: '',
+                senderName: '',
+                subjectPrefix: '',
+                secure: true,
+            },
+            account: undefined,
+        };
+    }
+
+    const smtpConfig: SmtpConfig = {
+        host: account.host,
+        port: account.port,
+        user: account.user,
+        pass: account.pass,
+        senderName: account.senderName,
+        subjectPrefix: account.subjectPrefix,
+        secure: account.secure,
+    };
+
+    return { smtpConfig, account };
+}
+
+/**
  * 发送邮件
  * @param params 邮件参数
  * @returns 是否发送成功
  */
-export async function sendEmail(params: SendEmailParams): Promise<{ success: boolean; message: string }> {
-    const cfg = pluginState.config;
-    const smtpConfig: SmtpConfig = {
-        host: cfg.smtpHost,
-        port: cfg.smtpPort,
-        user: cfg.smtpUser,
-        pass: cfg.smtpPass,
-        senderName: cfg.smtpSenderName,
-        subjectPrefix: cfg.smtpSubjectPrefix,
-        secure: cfg.smtpSecure,
-    };
+export async function sendEmail(params: SendEmailParams): Promise<{ success: boolean; message: string; accountId?: string }> {
+    const { smtpConfig, account } = getSmtpConfigByAccount(params.accountId);
 
     // 验证 SMTP 配置
     const validation = validateSmtpConfig(smtpConfig);
@@ -144,7 +180,7 @@ export async function sendEmail(params: SendEmailParams): Promise<{ success: boo
         };
 
         // 调试日志
-        pluginState.logger.debug(`发送邮件 - 收件人: ${params.to}`);
+        pluginState.logger.debug(`发送邮件 - 收件人: ${params.to}, 账号: ${account?.name || '默认'}`);
 
         // 如果有 HTML 内容，优先使用 HTML
         if (params.html) {
@@ -166,31 +202,23 @@ export async function sendEmail(params: SendEmailParams): Promise<{ success: boo
 
         const info = await transporter.sendMail(mailOptions);
 
-        pluginState.logger.info(`邮件发送成功: ${info.messageId}`);
-        return { success: true, message: `邮件发送成功: ${info.messageId}` };
+        pluginState.logger.info(`邮件发送成功: ${info.messageId}, 账号: ${account?.name || '默认'}`);
+        return { success: true, message: `邮件发送成功: ${info.messageId}`, accountId: account?.id };
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         pluginState.logger.error('邮件发送失败:', error);
-        return { success: false, message: `邮件发送失败: ${errorMessage}` };
+        return { success: false, message: `邮件发送失败: ${errorMessage}`, accountId: account?.id };
     }
 }
 
 /**
  * 发送测试邮件
  * @param to 收件人邮箱
+ * @param accountId 邮箱账号 ID（可选）
  * @returns 是否发送成功
  */
-export async function sendTestEmail(to: string): Promise<{ success: boolean; message: string }> {
-    const cfg = pluginState.config;
-    const smtpConfig: SmtpConfig = {
-        host: cfg.smtpHost,
-        port: cfg.smtpPort,
-        user: cfg.smtpUser,
-        pass: cfg.smtpPass,
-        senderName: cfg.smtpSenderName,
-        subjectPrefix: cfg.smtpSubjectPrefix,
-        secure: cfg.smtpSecure,
-    };
+export async function sendTestEmail(to: string, accountId?: string): Promise<{ success: boolean; message: string }> {
+    const { smtpConfig, account } = getSmtpConfigByAccount(accountId);
 
     const validation = validateSmtpConfig(smtpConfig);
     if (!validation.valid) {
@@ -202,9 +230,10 @@ export async function sendTestEmail(to: string): Promise<{ success: boolean; mes
     }
 
     return sendEmail({
+        accountId,
         to,
         subject: 'SMTP 配置测试',
-        text: `这是一封测试邮件，用于验证 SMTP 配置是否正确。\n\n发送时间: ${new Date().toLocaleString('zh-CN')}`,
+        text: `这是一封测试邮件，用于验证 SMTP 配置是否正确。\n\n发送时间: ${new Date().toLocaleString('zh-CN')}\n发件账号: ${account?.name || '默认'}`,
         html: `
             <div style="font-family: Arial, sans-serif; padding: 20px;">
                 <h2 style="color: #4CAF50;">SMTP 配置测试</h2>
@@ -212,6 +241,7 @@ export async function sendTestEmail(to: string): Promise<{ success: boolean; mes
                 <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
                 <p style="color: #666; font-size: 12px;">
                     发送时间: ${new Date().toLocaleString('zh-CN')}<br>
+                    发件账号: ${account?.name || '默认'}<br>
                     发件人: ${smtpConfig.senderName}
                 </p>
             </div>
@@ -242,19 +272,11 @@ export function validateSmtpConfig(smtpConfig: SmtpConfig): { valid: boolean; me
 
 /**
  * 测试 SMTP 连接
+ * @param accountId 邮箱账号 ID（可选）
  * @returns 连接测试结果
  */
-export async function testSmtpConnection(): Promise<{ success: boolean; message: string }> {
-    const cfg = pluginState.config;
-    const smtpConfig: SmtpConfig = {
-        host: cfg.smtpHost,
-        port: cfg.smtpPort,
-        user: cfg.smtpUser,
-        pass: cfg.smtpPass,
-        senderName: cfg.smtpSenderName,
-        subjectPrefix: cfg.smtpSubjectPrefix,
-        secure: cfg.smtpSecure,
-    };
+export async function testSmtpConnection(accountId?: string): Promise<{ success: boolean; message: string }> {
+    const { smtpConfig, account } = getSmtpConfigByAccount(accountId);
 
     const validation = validateSmtpConfig(smtpConfig);
     if (!validation.valid) {
@@ -264,7 +286,8 @@ export async function testSmtpConnection(): Promise<{ success: boolean; message:
     try {
         const transporter = createTransporter(smtpConfig);
         await transporter.verify();
-        return { success: true, message: 'SMTP 连接测试成功' };
+        pluginState.logger.info(`SMTP 连接测试成功 - 账号: ${account?.name || '默认'}`);
+        return { success: true, message: `SMTP 连接测试成功 - 账号: ${account?.name || '默认'}` };
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         pluginState.logger.error('SMTP 连接测试失败:', error);

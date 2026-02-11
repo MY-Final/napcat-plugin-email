@@ -146,8 +146,8 @@ export default defineConfig({
         outDir: 'dist',
     },
     plugins: [nodeResolve(), copyAssetsPlugin(), napcatHmrPlugin({
-        wsUrl: 'ws://192.168.110.125:8898',
-        token: '123456',
+        wsUrl: 'ws:///192.168.110.10:18898',
+        token: 'dshjafg',
         webui: {
             distDir: './src/webui/dist',
             targetDir: 'webui',

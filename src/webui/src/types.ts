@@ -25,23 +25,59 @@ export interface SmtpConfigWithPass extends SmtpConfig {
     pass: string
 }
 
+export interface EmailAccount {
+    id: string
+    name: string
+    isDefault: boolean
+    host: string
+    port: number
+    user: string
+    pass?: string
+    senderName: string
+    subjectPrefix: string
+    secure: boolean
+    createdAt: string
+    updatedAt: string
+}
+
+export interface CreateEmailAccountParams {
+    name: string
+    host: string
+    port: number
+    user: string
+    pass: string
+    senderName: string
+    subjectPrefix: string
+    secure: boolean
+    isDefault?: boolean
+}
+
+export interface UpdateEmailAccountParams {
+    name?: string
+    host?: string
+    port?: number
+    user?: string
+    pass?: string
+    senderName?: string
+    subjectPrefix?: string
+    secure?: boolean
+    isDefault?: boolean
+}
+
 export interface SendEmailParams {
+    accountId?: string
     to: string
     subject: string
     text?: string
     html?: string
+    attachments?: EmailAttachment[]
 }
 
 export interface PluginConfig {
     groupConfigs?: Record<string, GroupConfig>
     emailCommandPrefix: string
-    smtpHost: string
-    smtpPort: number
-    smtpUser: string
-    smtpPass: string
-    smtpSenderName: string
-    smtpSubjectPrefix: string
-    smtpSecure: boolean
+    emailAccounts: EmailAccount[]
+    defaultAccountId: string | null
 }
 
 export interface GroupConfig {
@@ -73,6 +109,7 @@ export interface EmailAttachment {
 export interface ScheduledEmail {
     id: string
     name: string
+    accountId: string
     to: string
     subject: string
     text?: string
@@ -99,6 +136,7 @@ export type EmailSendStatus = 'success' | 'failed'
 export interface EmailHistory {
     id: string
     sendType: EmailSendType
+    accountId: string
     to: string
     subject: string
     text?: string

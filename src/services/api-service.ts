@@ -23,7 +23,7 @@ import type {
 } from 'napcat-types/napcat-onebot/network/plugin/types';
 import { pluginState } from '../core/state';
 import { sendEmail, sendTestEmail, testSmtpConnection, validateSmtpConfig } from './email-service';
-import type { SendEmailParams, CreateScheduledEmailParams, UpdateScheduledEmailParams } from '../types';
+import type { SendEmailParams, CreateScheduledEmailParams, UpdateScheduledEmailParams, CreateEmailAccountParams, UpdateEmailAccountParams } from '../types';
 import {
     getScheduledEmails,
     getScheduledEmailById,
@@ -79,6 +79,170 @@ export function registerApiRoutes(ctx: NapCatPluginContext): void {
             res.json({ code: 0, message: 'ok' });
         } catch (err) {
             ctx.logger.error('保存配置失败:', err);
+            res.status(500).json({ code: -1, message: String(err) });
+        }
+    });
+
+    // ==================== 邮箱账号管理（无鉴权）====================
+
+    /** 获取所有邮箱账号 */
+    router.getNoAuth('/email/accounts', (_req, res) => {
+        try {
+            const accounts = pluginState.getEmailAccounts();
+            res.json({ code: 0, data: accounts });
+        } catch (err) {
+            ctx.logger.error('获取邮箱账号列表失败:', err);
+            res.status(500).json({ code: -1, message: String(err) });
+        }
+    });
+
+    /** 获取单个邮箱账号 */
+    router.getNoAuth('/email/accounts/:id', (req, res) => {
+        try {
+            const id = req.params?.id;
+            if (!id) {
+                return res.status(400).json({ code: -1, message: '缺少账号 ID' });
+            }
+
+            const account = pluginState.getEmailAccountById(id);
+            if (!account) {
+                return res.status(404).json({ code: -1, message: '邮箱账号不存在' });
+            }
+
+            res.json({ code: 0, data: account });
+        } catch (err) {
+            ctx.logger.error('获取邮箱账号失败:', err);
+            res.status(500).json({ code: -1, message: String(err) });
+        }
+    });
+
+    /** 获取默认邮箱账号 */
+    router.getNoAuth('/email/accounts/default', (_req, res) => {
+        try {
+            const account = pluginState.getDefaultEmailAccount();
+            res.json({ code: 0, data: account });
+        } catch (err) {
+            ctx.logger.error('获取默认邮箱账号失败:', err);
+            res.status(500).json({ code: -1, message: String(err) });
+        }
+    });
+
+    /** 创建邮箱账号 */
+    router.postNoAuth('/email/accounts', async (req, res) => {
+        try {
+            const body = req.body as CreateEmailAccountParams | undefined;
+            if (!body) {
+                return res.status(400).json({ code: -1, message: '请求体为空' });
+            }
+
+            // 验证必填字段
+            if (!body.name || !body.host || !body.user || !body.pass) {
+                return res.status(400).json({ code: -1, message: '请填写完整的账号信息' });
+            }
+
+            // 验证端口
+            if (!body.port || body.port <= 0 || body.port > 65535) {
+                return res.status(400).json({ code: -1, message: 'SMTP 端口无效' });
+            }
+
+            const account = pluginState.createEmailAccount(body);
+            ctx.logger.info(`创建邮箱账号: ${account.name} (${account.id})`);
+            res.json({ code: 0, data: account });
+        } catch (err) {
+            ctx.logger.error('创建邮箱账号失败:', err);
+            res.status(500).json({ code: -1, message: String(err) });
+        }
+    });
+
+    /** 更新邮箱账号 */
+    router.putNoAuth('/email/accounts/:id', async (req, res) => {
+        try {
+            const id = req.params?.id;
+            if (!id) {
+                return res.status(400).json({ code: -1, message: '缺少账号 ID' });
+            }
+
+            const body = req.body as UpdateEmailAccountParams | undefined;
+            if (!body) {
+                return res.status(400).json({ code: -1, message: '请求体为空' });
+            }
+
+            const account = pluginState.updateEmailAccount(id, body);
+            if (!account) {
+                return res.status(404).json({ code: -1, message: '邮箱账号不存在' });
+            }
+
+            ctx.logger.info(`更新邮箱账号: ${account.name} (${account.id})`);
+            res.json({ code: 0, data: account });
+        } catch (err) {
+            ctx.logger.error('更新邮箱账号失败:', err);
+            res.status(500).json({ code: -1, message: String(err) });
+        }
+    });
+
+    /** 删除邮箱账号 */
+    router.deleteNoAuth('/email/accounts/:id', (req, res) => {
+        try {
+            const id = req.params?.id;
+            if (!id) {
+                return res.status(400).json({ code: -1, message: '缺少账号 ID' });
+            }
+
+            const success = pluginState.deleteEmailAccount(id);
+            if (!success) {
+                return res.status(404).json({ code: -1, message: '邮箱账号不存在' });
+            }
+
+            ctx.logger.info(`删除邮箱账号: ${id}`);
+            res.json({ code: 0, message: '删除成功' });
+        } catch (err) {
+            ctx.logger.error('删除邮箱账号失败:', err);
+            res.status(500).json({ code: -1, message: String(err) });
+        }
+    });
+
+    /** 设为默认邮箱账号 */
+    router.postNoAuth('/email/accounts/:id/default', (req, res) => {
+        try {
+            const id = req.params?.id;
+            if (!id) {
+                return res.status(400).json({ code: -1, message: '缺少账号 ID' });
+            }
+
+            const success = pluginState.setDefaultEmailAccount(id);
+            if (!success) {
+                return res.status(404).json({ code: -1, message: '邮箱账号不存在' });
+            }
+
+            ctx.logger.info(`设置默认邮箱账号: ${id}`);
+            res.json({ code: 0, message: '设置成功' });
+        } catch (err) {
+            ctx.logger.error('设置默认邮箱账号失败:', err);
+            res.status(500).json({ code: -1, message: String(err) });
+        }
+    });
+
+    /** 测试指定账号的 SMTP 连接 */
+    router.postNoAuth('/email/accounts/:id/test', async (req, res) => {
+        try {
+            const id = req.params?.id;
+            if (!id) {
+                return res.status(400).json({ code: -1, message: '缺少账号 ID' });
+            }
+
+            const account = pluginState.getEmailAccountById(id);
+            if (!account) {
+                return res.status(404).json({ code: -1, message: '邮箱账号不存在' });
+            }
+
+            const result = await testSmtpConnection(id);
+            if (result.success) {
+                res.json({ code: 0, message: result.message });
+            } else {
+                res.status(500).json({ code: -1, message: result.message });
+            }
+        } catch (err) {
+            ctx.logger.error('测试邮箱账号连接失败:', err);
             res.status(500).json({ code: -1, message: String(err) });
         }
     });
@@ -193,25 +357,18 @@ export function registerApiRoutes(ctx: NapCatPluginContext): void {
                 return res.status(400).json({ code: -1, message: `无效的收件人邮箱: ${invalidRecipients.join(', ')}` });
             }
 
-            ctx.logger.debug(`API收到发送邮件请求 - 收件人: ${recipients.join(', ')}`);
+            ctx.logger.debug(`API收到发送邮件请求 - 收件人: ${recipients.join(', ')}, 账号: ${body.accountId || '默认'}`);
 
-            const cfg = pluginState.config;
-            const smtpConfig = {
-                host: cfg.smtpHost,
-                port: cfg.smtpPort,
-                user: cfg.smtpUser,
-                pass: cfg.smtpPass,
-                senderName: cfg.smtpSenderName,
-                subjectPrefix: cfg.smtpSubjectPrefix,
-                secure: cfg.smtpSecure,
-            };
-
-            const validation = validateSmtpConfig(smtpConfig);
-            if (!validation.valid) {
-                return res.status(400).json({ code: -1, message: validation.message });
+            // 验证账号（如果指定了）
+            if (body.accountId) {
+                const account = pluginState.getEmailAccountById(body.accountId);
+                if (!account) {
+                    return res.status(400).json({ code: -1, message: '邮箱账号不存在' });
+                }
             }
 
             const result = await sendEmail({
+                accountId: body.accountId,
                 to: recipients.join(','),
                 subject: body.subject,
                 text: body.text,
@@ -222,6 +379,7 @@ export function registerApiRoutes(ctx: NapCatPluginContext): void {
             // 保存历史记录
             emailHistoryService.addRecord({
                 sendType: 'manual',
+                accountId: result.accountId || body.accountId || '',
                 to: recipients.join(','),
                 subject: body.subject,
                 text: body.text,
@@ -284,26 +442,40 @@ export function registerApiRoutes(ctx: NapCatPluginContext): void {
     /** 测试 SMTP 配置 */
     router.postNoAuth('/email/test', async (req, res) => {
         try {
-            const body = req.body as { to?: string } | undefined;
-            const testEmail = body?.to || pluginState.config.smtpUser;
+            const body = req.body as { to?: string; accountId?: string } | undefined;
+            const testEmail = body?.to;
+            const accountId = body?.accountId;
 
-            if (!testEmail) {
-                return res.status(400).json({ code: -1, message: '请提供测试邮箱地址或配置发件人邮箱' });
+            // 验证账号（如果指定了）
+            if (accountId) {
+                const account = pluginState.getEmailAccountById(accountId);
+                if (!account) {
+                    return res.status(400).json({ code: -1, message: '邮箱账号不存在' });
+                }
+            } else if (pluginState.getEmailAccounts().length === 0) {
+                return res.status(400).json({ code: -1, message: '请先配置邮箱账号' });
             }
 
             // 先测试连接
-            const connectionResult = await testSmtpConnection();
+            const connectionResult = await testSmtpConnection(accountId);
             if (!connectionResult.success) {
                 return res.status(500).json({ code: -1, message: connectionResult.message });
             }
 
+            // 如果没有提供测试邮箱，使用账号的邮箱地址
+            const targetEmail = testEmail || pluginState.getEmailAccountById(accountId || '')?.user;
+            if (!targetEmail) {
+                return res.status(400).json({ code: -1, message: '请提供测试邮箱地址' });
+            }
+
             // 发送测试邮件
-            const result = await sendTestEmail(testEmail);
-            
+            const result = await sendTestEmail(targetEmail, accountId);
+
             // 保存历史记录
             emailHistoryService.addRecord({
                 sendType: 'test',
-                to: testEmail,
+                accountId: accountId || pluginState.getDefaultEmailAccount()?.id || '',
+                to: targetEmail,
                 subject: 'SMTP 配置测试',
                 text: `这是一封测试邮件，用于验证 SMTP 配置是否正确。\n\n发送时间: ${new Date().toLocaleString('zh-CN')}`,
                 html: `
@@ -318,7 +490,7 @@ export function registerApiRoutes(ctx: NapCatPluginContext): void {
                 errorMessage: result.success ? undefined : result.message,
                 attachmentCount: 0,
             });
-            
+
             if (result.success) {
                 res.json({ code: 0, message: result.message });
             } else {

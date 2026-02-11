@@ -14,7 +14,7 @@ import fs from 'fs';
 import path from 'path';
 import type { NapCatPluginContext, PluginLogger } from 'napcat-types/napcat-onebot/network/plugin/types';
 import { DEFAULT_CONFIG } from '../config';
-import type { PluginConfig, GroupConfig } from '../types';
+import type { PluginConfig, GroupConfig, EmailAccount, CreateEmailAccountParams, UpdateEmailAccountParams } from '../types';
 import { emailHistoryService } from '../services/email-history-service';
 
 // ==================== 配置清洗工具 ====================
@@ -28,9 +28,14 @@ function isObject(v: unknown): v is Record<string, unknown> {
  * 确保从文件读取的配置符合预期类型，防止运行时错误
  */
 function sanitizeConfig(raw: unknown): PluginConfig {
-    if (!isObject(raw)) return { ...DEFAULT_CONFIG, groupConfigs: {} };
+    if (!isObject(raw)) return { ...DEFAULT_CONFIG, groupConfigs: {}, emailAccounts: [], defaultAccountId: null };
 
-    const out: PluginConfig = { ...DEFAULT_CONFIG, groupConfigs: {} };
+    const out: PluginConfig = {
+        ...DEFAULT_CONFIG,
+        groupConfigs: {},
+        emailAccounts: [],
+        defaultAccountId: null,
+    };
 
     // 群配置清洗
     if (isObject(raw.groupConfigs)) {
@@ -43,21 +48,76 @@ function sanitizeConfig(raw: unknown): PluginConfig {
         }
     }
 
-    // SMTP 配置清洗（扁平结构）
-    if (typeof raw.smtpHost === 'string') out.smtpHost = raw.smtpHost;
-    if (typeof raw.smtpPort === 'number') out.smtpPort = raw.smtpPort;
-    if (typeof raw.smtpUser === 'string') out.smtpUser = raw.smtpUser;
-    if (typeof raw.smtpPass === 'string') out.smtpPass = raw.smtpPass;
-    if (typeof raw.smtpSenderName === 'string') out.smtpSenderName = raw.smtpSenderName;
-    if (typeof raw.smtpSubjectPrefix === 'string') out.smtpSubjectPrefix = raw.smtpSubjectPrefix;
-    if (typeof raw.smtpSecure === 'boolean') out.smtpSecure = raw.smtpSecure;
-
     // 邮件命令前缀清洗
     if (typeof raw.emailCommandPrefix === 'string') {
         out.emailCommandPrefix = raw.emailCommandPrefix;
     }
 
+    // 邮箱账号列表清洗（多账号支持）
+    if (Array.isArray(raw.emailAccounts)) {
+        out.emailAccounts = raw.emailAccounts.map((account: unknown) => {
+            if (!isObject(account)) return null;
+            return {
+                id: String(account.id || generateAccountId()),
+                name: String(account.name || '未命名账号'),
+                isDefault: Boolean(account.isDefault),
+                host: String(account.host || ''),
+                port: Number(account.port) || 465,
+                user: String(account.user || ''),
+                pass: String(account.pass || ''),
+                senderName: String(account.senderName || ''),
+                subjectPrefix: String(account.subjectPrefix || ''),
+                secure: Boolean(account.secure),
+                createdAt: String(account.createdAt || new Date().toISOString()),
+                updatedAt: String(account.updatedAt || new Date().toISOString()),
+            };
+        }).filter(Boolean) as EmailAccount[];
+    }
+
+    // 默认账号 ID 清洗
+    if (typeof raw.defaultAccountId === 'string') {
+        out.defaultAccountId = raw.defaultAccountId;
+    }
+
+    // 旧版 SMTP 配置清洗（用于迁移）
+    if (typeof raw.smtpHost === 'string' && typeof raw.smtpUser === 'string') {
+        out.smtpHost = raw.smtpHost;
+        out.smtpPort = Number(raw.smtpPort) || 465;
+        out.smtpUser = raw.smtpUser;
+        out.smtpPass = String(raw.smtpPass || '');
+        out.smtpSenderName = String(raw.smtpSenderName || '');
+        out.smtpSubjectPrefix = String(raw.smtpSubjectPrefix || '');
+        out.smtpSecure = Boolean(raw.smtpSecure);
+
+        // 如果没有邮箱账号列表，且有旧版配置，则迁移旧配置
+        if (out.emailAccounts.length === 0 && raw.smtpHost && raw.smtpUser) {
+            const migratedAccount: EmailAccount = {
+                id: generateAccountId(),
+                name: raw.smtpSenderName || raw.smtpUser,
+                isDefault: true,
+                host: raw.smtpHost,
+                port: Number(raw.smtpPort) || 465,
+                user: raw.smtpUser,
+                pass: String(raw.smtpPass || ''),
+                senderName: String(raw.smtpSenderName || ''),
+                subjectPrefix: String(raw.smtpSubjectPrefix || ''),
+                secure: Boolean(raw.smtpSecure),
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+            };
+            out.emailAccounts.push(migratedAccount);
+            out.defaultAccountId = migratedAccount.id;
+        }
+    }
+
     return out;
+}
+
+/**
+ * 生成邮箱账号唯一 ID
+ */
+function generateAccountId(): string {
+    return `account_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 }
 
 // ==================== 插件全局状态类 ====================
@@ -271,6 +331,174 @@ class PluginState {
      */
     isGroupEnabled(groupId: string): boolean {
         return this.config.groupConfigs[groupId]?.enabled !== false;
+    }
+
+    // ==================== 邮箱账号管理 ====================
+
+    /**
+     * 获取所有邮箱账号
+     */
+    getEmailAccounts(): EmailAccount[] {
+        return this.config.emailAccounts || [];
+    }
+
+    /**
+     * 获取邮箱账号（根据 ID）
+     */
+    getEmailAccountById(id: string): EmailAccount | undefined {
+        return this.getEmailAccounts().find(account => account.id === id);
+    }
+
+    /**
+     * 获取默认邮箱账号
+     */
+    getDefaultEmailAccount(): EmailAccount | undefined {
+        const accounts = this.getEmailAccounts();
+        if (accounts.length === 0) return undefined;
+
+        // 如果有设置默认账号，优先返回
+        if (this.config.defaultAccountId) {
+            const defaultAccount = accounts.find(a => a.id === this.config.defaultAccountId);
+            if (defaultAccount) return defaultAccount;
+        }
+
+        // 否则返回第一个账号
+        return accounts[0];
+    }
+
+    /**
+     * 创建邮箱账号
+     */
+    createEmailAccount(params: CreateEmailAccountParams): EmailAccount {
+        const now = new Date().toISOString();
+        const isFirstAccount = this.getEmailAccounts().length === 0;
+
+        const account: EmailAccount = {
+            id: generateAccountId(),
+            name: params.name,
+            isDefault: params.isDefault ?? isFirstAccount,
+            host: params.host,
+            port: params.port,
+            user: params.user,
+            pass: params.pass,
+            senderName: params.senderName,
+            subjectPrefix: params.subjectPrefix,
+            secure: params.secure,
+            createdAt: now,
+            updatedAt: now,
+        };
+
+        // 确保 emailAccounts 数组存在
+        if (!this.config.emailAccounts) {
+            this.config.emailAccounts = [];
+        }
+
+        // 如果设为默认账号，取消其他账号的默认状态
+        if (account.isDefault) {
+            for (const acc of this.config.emailAccounts) {
+                acc.isDefault = false;
+            }
+            this.config.defaultAccountId = account.id;
+        }
+
+        this.config.emailAccounts.push(account);
+        this.saveConfig();
+
+        this.logger.info(`创建邮箱账号: ${account.name} (${account.id})`);
+        return account;
+    }
+
+    /**
+     * 更新邮箱账号
+     */
+    updateEmailAccount(id: string, params: UpdateEmailAccountParams): EmailAccount | null {
+        // 确保 emailAccounts 数组存在
+        if (!this.config.emailAccounts) {
+            this.config.emailAccounts = [];
+        }
+
+        const index = this.config.emailAccounts.findIndex(a => a.id === id);
+        if (index === -1) return null;
+
+        const account = this.config.emailAccounts[index];
+
+        // 如果设为默认账号，取消其他账号的默认状态
+        if (params.isDefault) {
+            for (const acc of this.config.emailAccounts) {
+                acc.isDefault = false;
+            }
+            this.config.defaultAccountId = id;
+        }
+
+        // 更新字段
+        if (params.name !== undefined) account.name = params.name;
+        if (params.host !== undefined) account.host = params.host;
+        if (params.port !== undefined) account.port = params.port;
+        if (params.user !== undefined) account.user = params.user;
+        if (params.pass !== undefined) account.pass = params.pass;
+        if (params.senderName !== undefined) account.senderName = params.senderName;
+        if (params.subjectPrefix !== undefined) account.subjectPrefix = params.subjectPrefix;
+        if (params.secure !== undefined) account.secure = params.secure;
+        if (params.isDefault !== undefined) account.isDefault = params.isDefault;
+
+        account.updatedAt = new Date().toISOString();
+
+        this.config.emailAccounts[index] = account;
+        this.saveConfig();
+
+        this.logger.info(`更新邮箱账号: ${account.name} (${account.id})`);
+        return account;
+    }
+
+    /**
+     * 删除邮箱账号
+     */
+    deleteEmailAccount(id: string): boolean {
+        // 确保 emailAccounts 数组存在
+        if (!this.config.emailAccounts) {
+            this.config.emailAccounts = [];
+        }
+
+        const index = this.config.emailAccounts.findIndex(a => a.id === id);
+        if (index === -1) return false;
+
+        const account = this.config.emailAccounts[index];
+        this.config.emailAccounts.splice(index, 1);
+
+        // 如果删除的是默认账号，设置新的默认账号
+        if (this.config.defaultAccountId === id) {
+            if (this.config.emailAccounts.length > 0) {
+                this.config.emailAccounts[0].isDefault = true;
+                this.config.defaultAccountId = this.config.emailAccounts[0].id;
+            } else {
+                this.config.defaultAccountId = null;
+            }
+        }
+
+        this.saveConfig();
+        this.logger.info(`删除邮箱账号: ${account.name} (${account.id})`);
+        return true;
+    }
+
+    /**
+     * 设为默认邮箱账号
+     */
+    setDefaultEmailAccount(id: string): boolean {
+        const account = this.getEmailAccountById(id);
+        if (!account) return false;
+
+        // 取消所有账号的默认状态
+        for (const acc of this.config.emailAccounts) {
+            acc.isDefault = false;
+        }
+
+        // 设置新的默认账号
+        account.isDefault = true;
+        this.config.defaultAccountId = id;
+
+        this.saveConfig();
+        this.logger.info(`设置默认邮箱账号: ${account.name} (${account.id})`);
+        return true;
     }
 
     // ==================== 统计 ====================
