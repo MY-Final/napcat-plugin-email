@@ -1,3 +1,5 @@
+![napcat-plugin-email](https://count.getloli.com/@MY-Final_napcat-plugin-email?name=napcat-plugin-email&theme=minecraft&padding=6&offset=0&align=top&scale=1&pixelated=1&darkmode=auto)
+
 # NapCat 邮箱服务插件
 
 [![NapCat Version](https://img.shields.io/badge/NapCat-%3E%3D4.14.0-blue)](https://github.com/NapNeko/NapCatQQ)
